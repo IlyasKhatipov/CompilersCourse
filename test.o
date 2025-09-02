@@ -1,0 +1,6 @@
+class C is
+  var x : 10
+  method Foo(a : Integer) : Integer => a
+end
+
+var b : true
