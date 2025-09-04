@@ -1,0 +1,19 @@
+class Animal {
+  void speak() {
+    output("...");
+  }
+}
+
+class Dog : Animal {
+  void bark() {
+    output("woof");
+  }
+}
+
+class Main {
+  void main() {
+    Dog d;
+    d.speak();
+    d.bark();
+  }
+}

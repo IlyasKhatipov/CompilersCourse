@@ -1,0 +1,20 @@
+class Animal {
+  virtual void speak() {
+    output("...");
+  }
+}
+
+class Dog : Animal {
+  override void speak() {
+    output("woof");
+  }
+}
+
+class Main {
+  void main() {
+    Animal a;
+    Dog d;
+    a = d;       // полиморфизм
+    a.speak();   // должен вызвать Dog.speak()
+  }
+}

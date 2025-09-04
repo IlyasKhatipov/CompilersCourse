@@ -1,0 +1,21 @@
+class Point {
+  int x;
+  int y;
+
+  void init(int a, int b) {
+    x = a; y = b;
+  }
+
+  void print() {
+    output(x);
+    output(y);
+  }
+}
+
+class Main {
+  void main() {
+    Point p;
+    p.init(3, 4);
+    p.print();
+  }
+}

@@ -1,0 +1,11 @@
+class Main {
+  void main() {
+    int x;
+    x = 10;
+    if (x > 5) {
+      output(1);
+    } else {
+      output(0);
+    }
+  }
+}

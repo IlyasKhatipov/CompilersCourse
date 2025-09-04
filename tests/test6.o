@@ -1,0 +1,8 @@
+class Main {
+  int square(int x) {
+    return x * x;
+  }
+  void main() {
+    output(square(4));
+  }
+}

@@ -1,0 +1,12 @@
+class Main {
+  int add(int a, int b) {
+    return a + b;
+  }
+  int mul(int a, int b) {
+    return a * b;
+  }
+  void main() {
+    output(add(2, 3));
+    output(mul(2, 3));
+  }
+}

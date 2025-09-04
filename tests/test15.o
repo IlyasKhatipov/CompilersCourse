@@ -1,0 +1,20 @@
+class A {
+  int get() {
+    return 42;
+  }
+}
+
+class B {
+  A obj;
+
+  void print() {
+    output(obj.get());
+  }
+}
+
+class Main {
+  void main() {
+    B b;
+    b.print();
+  }
+}

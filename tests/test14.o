@@ -1,0 +1,11 @@
+class Main {
+  void main() {
+    bool a;
+    a = true;
+    if (a) {
+      output(1);
+    } else {
+      output(0);
+    }
+  }
+}
