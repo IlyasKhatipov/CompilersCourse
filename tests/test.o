@@ -1,6 +1,24 @@
 class C is
-  var x : 10
-  method Foo(a : Integer) : Integer => a
+  var x : 10.1.2.3
+  method Foo(a : Float ) : Float => a
 end
 
-var b : true
+class Animal {
+  void speak() {
+    output("...");
+  }
+}
+
+class Dog : Animal {
+  void bark() {
+    output("woof");
+  }
+}
+
+class Main {
+  void main() {
+    Dog d;
+    d.speak();
+    d.bark();
+  }
+}
