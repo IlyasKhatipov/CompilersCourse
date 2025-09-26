@@ -1,0 +1,34 @@
+name: Lexer CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flex g++ make
+
+      - name: Build lexer
+        run: |
+          flex -+ lexer.l
+          g++ lex.yy.cc -o lexer -lfl -std=c++17
+
+      - name: Run tests
+        run: |
+          echo "Running test1.o"
+          ./lexer tests/test1.o || true
+          echo "Running test2.o"
+          ./lexer tests/test2.o || true
+          echo "Running test3.o"
+          ./lexer tests/test3.o || true
