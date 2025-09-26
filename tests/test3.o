@@ -1,7 +1,7 @@
-class Main {
-  void main() {
-    int a; int b;
-    a = 2; b = 3;
-    output(a + b);
-  }
-}
+class Main is
+  method Run() : Int =>
+    if true then
+      return 42
+    else
+      return 0
+end

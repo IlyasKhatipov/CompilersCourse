@@ -1,5 +1,4 @@
-class Main {
-  void main() {
-    output("Hello, World!");
-  }
-}
+class Point is
+  var x : Int
+  var y : Int
+end

@@ -26,9 +26,20 @@ jobs:
 
       - name: Run tests
         run: |
-          echo "Running test1.o"
+          echo "=============================="
+          echo " Running test 1"
+          echo "=============================="
           ./lexer tests/test1.o || true
-          echo "Running test2.o"
+          echo "______________________________"
+
+          echo "=============================="
+          echo " Running test 2"
+          echo "=============================="
           ./lexer tests/test2.o || true
-          echo "Running test3.o"
+          echo "______________________________"
+
+          echo "=============================="
+          echo " Running test 3"
+          echo "=============================="
           ./lexer tests/test3.o || true
+          echo "______________________________"

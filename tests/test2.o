@@ -1,7 +1,4 @@
-class Main {
-  void main() {
-    int x;
-    x = 5;
-    output(x);
-  }
-}
+class Math is
+  method Add(a : Int, b : Int) : Int => a + b
+  method Neg(v : Float) : Float => -v
+end
