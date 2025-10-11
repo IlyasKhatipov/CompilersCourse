@@ -9,15 +9,17 @@
 #include <fstream>
 #include <algorithm>
 
+// ✅ ВОТ СЮДА вставляем include — сразу после стандартных инклудов:
+#include "parser.tab.h"   // <- добавлено для связи с Bison
 
 using namespace std;
 
+// --- Твоя структура токенов (оставляем для отладки) ---
 class Token {
 public:
     int line;
     int startCol;
     int endCol;
-
     Token(int l, int s, int e) : line(l), startCol(s), endCol(e) {}
     virtual ~Token() = default;
     virtual void print() const = 0;
@@ -85,8 +87,8 @@ int currentCol = 1;
 
 static inline void addToken(unique_ptr<Token> t) { tokens.push_back(move(t)); }
 
+#define RET(t) do { return t; } while(0)
 %}
-
 
 DIGIT   [0-9]
 LETTER  [A-Za-z_]
@@ -98,105 +100,73 @@ LETTER  [A-Za-z_]
 \n                { currentLine++; currentCol = 1; }
 \r                { currentLine++; currentCol = 1; }
 
-
+// --- Ключевые слова ---
 "class"|"extends"|"is"|"end"|"var"|"method"|"this"|"return"|"if"|"then"|"else"|"while"|"loop" {
     int start = currentCol;
     currentCol += yyleng;
     addToken(make_unique<KeywordToken>(string(yytext), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(KEYWORD);
 }
 
-
+// --- Булевые значения ---
 "true"|"false" {
     int start = currentCol;
     currentCol += yyleng;
     addToken(make_unique<BooleanToken>(string(yytext), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(BOOLEAN);
 }
 
-
+// --- Числа ---
 {DIGIT}+\.{DIGIT}+ {
     int start = currentCol;
     currentCol += yyleng;
-    if (yytext[yyleng] == '.') {
-        addToken(make_unique<UnknownToken>(string(yytext), currentLine, start, currentCol - 1));
-        cerr << "Invalid real number at line " << currentLine << ", col " << start << ": " << yytext << "\n";
-    } else {
-        addToken(make_unique<RealToken>(stod(string(yytext)), currentLine, start, currentCol - 1));
-    }
+    addToken(make_unique<RealToken>(stod(string(yytext)), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(REAL);
 }
-
-{DIGIT}+(\.{DIGIT}+)+ {
-    int start = currentCol;
-    currentCol += yyleng;
-    string text(yytext);
-    size_t countDots = std::count(text.begin(), text.end(), '.');
-    if (countDots > 1) {
-        addToken(make_unique<UnknownToken>(text, currentLine, start, currentCol - 1));
-        cerr << "Invalid real number at line " << currentLine << ", col " << start << ": " << text << "\n";
-    } else {
-        addToken(make_unique<RealToken>(stod(text), currentLine, start, currentCol - 1));
-    }
-}
-
-
 
 {DIGIT}+ {
     int start = currentCol;
     currentCol += yyleng;
     addToken(make_unique<IntegerToken>(stoi(string(yytext)), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(INTEGER);
 }
 
-
+// --- Строки ---
 \"([^"\\\n]|\\.)*\" {
     int start = currentCol;
     currentCol += yyleng;
     string s(yytext);
-    if (s.size() >= 2) s = s.substr(1, s.size() - 2); /* remove surrounding " */
-    /* Unescape common sequences */
-    string unescaped;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '\\' && i + 1 < s.size()) {
-            char c = s[i+1];
-            switch (c) {
-                case 'n': unescaped.push_back('\n'); break;
-                case 't': unescaped.push_back('\t'); break;
-                case 'r': unescaped.push_back('\r'); break;
-                case '\\': unescaped.push_back('\\'); break;
-                case '"': unescaped.push_back('"'); break;
-                default: unescaped.push_back(c); break;
-            }
-            ++i;
-        } else {
-            unescaped.push_back(s[i]);
-        }
-    }
-    addToken(make_unique<StringToken>(unescaped, currentLine, start, currentCol - 1));
+    if (s.size() >= 2) s = s.substr(1, s.size() - 2);
+    addToken(make_unique<StringToken>(s, currentLine, start, currentCol - 1));
+    yylval.str = strdup(s.c_str());
+    RET(STRING);
 }
 
-
+// --- Идентификаторы ---
 {LETTER}({LETTER}|{DIGIT})* {
     int start = currentCol;
     currentCol += yyleng;
     addToken(make_unique<IdentifierToken>(string(yytext), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(IDENTIFIER);
 }
 
-
-":="|"=>" {
+// --- Символы ---
+":="|"=>"|[.,:()\[\]\{\}] {
     int start = currentCol;
     currentCol += yyleng;
     addToken(make_unique<SymbolToken>(string(yytext), currentLine, start, currentCol - 1));
+    yylval.str = strdup(yytext);
+    RET(SYMBOL);
 }
 
-
-[.,:()\[\]\{\}] {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<SymbolToken>(string(yytext), currentLine, start, currentCol - 1));
-}
-
-
+// --- Остальное ---
 . {
     int start = currentCol;
-    /* yytext may be multichar for some patterns, but here it's single char */
     currentCol += yyleng;
     cerr << "Unknown char at line " << currentLine << " col " << start << ": '" << yytext[0] << "'\n";
     addToken(make_unique<UnknownToken>(string(yytext), currentLine, start, currentCol - 1));
@@ -204,6 +174,7 @@ LETTER  [A-Za-z_]
 
 %%
 
+// --- Точка входа ---
 int main(int argc, char **argv) {
     yyFlexLexer lexer;
 
@@ -217,11 +188,8 @@ int main(int argc, char **argv) {
         lexer.switch_streams(&file, &std::cout);
     }
 
-    while (lexer.yylex() != 0) {
-
-    }
+    yyparse();  // 🧠 теперь парсер управляет лексером
 
     for (auto &t : tokens) t->print();
-
     return 0;
 }
