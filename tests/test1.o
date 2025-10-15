@@ -1,4 +1,4 @@
 class Point is
-  var x : Int
-  var y : Int
+  var x : Int;
+  var y : Int;
 end

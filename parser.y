@@ -1,57 +1,58 @@
+%code requires {
+    #include <string>
+    #include <vector>
+    #include <memory>
+    #include <iostream>
+
+    using namespace std;
+
+    struct VarDecl {
+        string name;
+        string type;
+    };
+
+    struct ClassDecl {
+        string name;
+        vector<VarDecl> vars;
+    };
+
+    extern vector<ClassDecl> classes;
+}
+
 %{
 #include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
+#include <FlexLexer.h>
 
 using namespace std;
 
-// Объявим yylex(), который будет вызываться из Flex
 int yylex();
 void yyerror(const char *s);
-
-// Простая структура для AST (можно потом вынести в отдельный файл)
-struct VarDecl {
-    string name;
-    string type;
-};
-
-struct ClassDecl {
-    string name;
-    vector<VarDecl> vars;
-};
-
-vector<ClassDecl> classes;
 %}
 
-// Типы значений
 %union {
     char* str;
-    VarDecl* var;
-    ClassDecl* cls;
+    struct VarDecl* var;
+    struct ClassDecl* cls;
     vector<VarDecl>* varList;
 }
 
-// Терминалы
+/* Новые токены для ключевых слов */
 %token <str> IDENTIFIER
+%token <str> STRING BOOLEAN INTEGER REAL SYMBOL
+%token CLASS IS END VAR
 %token <str> KEYWORD
-%token <str> SYMBOL
-%token <str> STRING
-%token <str> BOOLEAN
-%token <str> INTEGER
-%token <str> REAL
 
-// Правила будут использовать только часть этих токенов
 %type <cls> class_decl
 %type <varList> var_decl_list
+%type <varList> class_body
 %type <var> var_decl
 
-// Символ начала
 %start program
 
 %%
-
-// ======= Грамматика =======
 
 program:
     class_list
@@ -63,62 +64,77 @@ class_list:
     ;
 
 class_decl:
-    KEYWORD IDENTIFIER KEYWORD class_body KEYWORD
+    CLASS IDENTIFIER IS class_body END
     {
-        // ожидаем: class <id> is <body> end
-        if (std::string($1) != "class" || std::string($3) != "is" || std::string($5) != "end") {
-            yyerror("Invalid class declaration syntax");
-        } else {
-            ClassDecl cls;
-            cls.name = $2;
-            cls.vars = *$4;
-            classes.push_back(cls);
-        }
+        ClassDecl* cls = new ClassDecl();
+        cls->name = $2;
+        cls->vars = *$4;
+        classes.push_back(*cls);
+        delete $4;
+        free($2);
     }
     ;
 
 class_body:
       var_decl_list
+    | /* empty */
+      { $$ = new vector<VarDecl>(); }
     ;
 
 var_decl_list:
-      var_decl
-    | var_decl_list var_decl
-    {
-        $$ = $1;
-        $1->push_back(*$2);
-    }
+      var_decl ';'
+      {
+          $$ = new vector<VarDecl>();
+          $$->push_back(*$1);
+          delete $1;
+      }
+    | var_decl_list var_decl ';'
+      {
+          $$ = $1;
+          $$->push_back(*$2);
+          delete $2;
+      }
     ;
 
 var_decl:
-    KEYWORD IDENTIFIER SYMBOL IDENTIFIER
+    VAR IDENTIFIER ':' IDENTIFIER
     {
-        // ожидаем: var x : Int
-        if (std::string($1) != "var" || std::string($3) != ":")
-            yyerror("Invalid variable declaration syntax");
-        else {
-            $$ = new VarDecl{$2, $4};
-        }
+        $$ = new VarDecl();
+        $$->name = $2;
+        $$->type = $4;
+        free($2);
+        free($4);
     }
     ;
 
 %%
 
-// ======= Вспомогательные функции =======
+vector<ClassDecl> classes;
 
 void yyerror(const char *s) {
     cerr << "Syntax error: " << s << endl;
 }
 
-int main() {
+static yyFlexLexer lexer;
+
+int yylex() {
+    return lexer.yylex();
+}
+
+int main(int argc, char **argv) {
     cout << "Parsing..." << endl;
-    if (yyparse() == 0) {
+
+    int result = yyparse();
+    if (result == 0) {
         cout << "Parsing completed successfully.\n";
         for (auto &cls : classes) {
             cout << "Class: " << cls.name << endl;
             for (auto &v : cls.vars)
                 cout << "  Var " << v.name << " : " << v.type << endl;
         }
+    } else {
+        cout << "Parsing failed.\n";
     }
+
     return 0;
 }

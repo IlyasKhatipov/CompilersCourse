@@ -6,15 +6,10 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <fstream>
-#include <algorithm>
-
-// ✅ ВОТ СЮДА вставляем include — сразу после стандартных инклудов:
-#include "parser.tab.h"   // <- добавлено для связи с Bison
+#include "parser.tab.hh"
 
 using namespace std;
 
-// --- Твоя структура токенов (оставляем для отладки) ---
 class Token {
 public:
     int line;
@@ -100,96 +95,48 @@ LETTER  [A-Za-z_]
 \n                { currentLine++; currentCol = 1; }
 \r                { currentLine++; currentCol = 1; }
 
-// --- Ключевые слова ---
-"class"|"extends"|"is"|"end"|"var"|"method"|"this"|"return"|"if"|"then"|"else"|"while"|"loop" {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<KeywordToken>(string(yytext), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(KEYWORD);
+"class"      { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("class", currentLine,start,currentCol-1)); RET(CLASS); }
+"is"         { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("is", currentLine,start,currentCol-1)); RET(IS); }
+"end"        { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("end", currentLine,start,currentCol-1)); RET(END); }
+"var"        { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("var", currentLine,start,currentCol-1)); RET(VAR); }
+
+"extends"|"method"|"this"|"return"|"if"|"then"|"else"|"while"|"loop" {
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>(yytext, currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(KEYWORD);
 }
 
-// --- Булевые значения ---
 "true"|"false" {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<BooleanToken>(string(yytext), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(BOOLEAN);
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<BooleanToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(BOOLEAN);
 }
 
-// --- Числа ---
-{DIGIT}+\.{DIGIT}+ {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<RealToken>(stod(string(yytext)), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(REAL);
+{DIGIT}+"."{DIGIT}+ {
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<RealToken>(stod(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(REAL);
 }
 
 {DIGIT}+ {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<IntegerToken>(stoi(string(yytext)), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(INTEGER);
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<IntegerToken>(stoi(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(INTEGER);
 }
 
-// --- Строки ---
-\"([^"\\\n]|\\.)*\" {
-    int start = currentCol;
-    currentCol += yyleng;
+\"([^\"\\\n]|\\.)*\" {
+    int start=currentCol; currentCol+=yyleng;
     string s(yytext);
-    if (s.size() >= 2) s = s.substr(1, s.size() - 2);
-    addToken(make_unique<StringToken>(s, currentLine, start, currentCol - 1));
-    yylval.str = strdup(s.c_str());
+    if (s.size()>=2) s=s.substr(1,s.size()-2);
+    addToken(make_unique<StringToken>(s,currentLine,start,currentCol-1));
+    yylval.str=strdup(s.c_str());
     RET(STRING);
 }
 
-// --- Идентификаторы ---
 {LETTER}({LETTER}|{DIGIT})* {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<IdentifierToken>(string(yytext), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(IDENTIFIER);
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<IdentifierToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(IDENTIFIER);
 }
 
-// --- Символы ---
-":="|"=>"|[.,:()\[\]\{\}] {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<SymbolToken>(string(yytext), currentLine, start, currentCol - 1));
-    yylval.str = strdup(yytext);
-    RET(SYMBOL);
+":="|"=>"|[.,:();\[\]\{\}] {
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(SYMBOL);
 }
 
-// --- Остальное ---
 . {
-    int start = currentCol;
-    currentCol += yyleng;
+    int start=currentCol; currentCol+=yyleng;
     cerr << "Unknown char at line " << currentLine << " col " << start << ": '" << yytext[0] << "'\n";
-    addToken(make_unique<UnknownToken>(string(yytext), currentLine, start, currentCol - 1));
+    addToken(make_unique<UnknownToken>(yytext,currentLine,start,currentCol-1));
 }
 
 %%
-
-// --- Точка входа ---
-int main(int argc, char **argv) {
-    yyFlexLexer lexer;
-
-    std::ifstream file;
-    if (argc > 1) {
-        file.open(argv[1]);
-        if (!file.is_open()) {
-            perror("File opening failed");
-            return 1;
-        }
-        lexer.switch_streams(&file, &std::cout);
-    }
-
-    yyparse();  // 🧠 теперь парсер управляет лексером
-
-    for (auto &t : tokens) t->print();
-    return 0;
-}
