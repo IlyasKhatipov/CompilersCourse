@@ -47,26 +47,44 @@ extern int yydebug;
 /* "%code requires" blocks.  */
 #line 1 "parser.y"
 
-    #include <string>
-    #include <vector>
-    #include <memory>
-    #include <iostream>
+#include <string>
+#include <vector>
+#include <memory>
+#include <iostream>
 
-    using namespace std;
+using namespace std;
 
-    struct VarDecl {
-        string name;
-        string type;
-    };
+struct Param {
+    string name;
+    string type;
+};
 
-    struct ClassDecl {
-        string name;
-        vector<VarDecl> vars;
-    };
+struct Expr {
+    string repr;
+};
 
-    extern vector<ClassDecl> classes;
+struct VarDecl {
+    string name;
+    string type;
+};
 
-#line 70 "parser.tab.hh"
+struct MethodDecl {
+    string name;
+    vector<Param> params;
+    string returnType;
+    Expr body;
+};
+
+struct ClassDecl {
+    string name;
+    vector<VarDecl> vars;
+    vector<MethodDecl> methods;
+};
+
+extern std::vector<ClassDecl> classes;
+extern std::vector<MethodDecl> currentMethods;
+
+#line 88 "parser.tab.hh"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -97,7 +115,8 @@ extern int yydebug;
     WHILE = 275,                   /* WHILE  */
     LOOP = 276,                    /* LOOP  */
     ARROW = 277,                   /* ARROW  */
-    UMINUS = 278                   /* UMINUS  */
+    UMINUS = 278,                  /* UMINUS  */
+    LOWER_THAN_ELSE = 279          /* LOWER_THAN_ELSE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -106,14 +125,17 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 36 "parser.y"
+#line 53 "parser.y"
 
     char* str;
     struct VarDecl* var;
+    struct MethodDecl* method;
     struct ClassDecl* cls;
+    struct Expr* expr;
     vector<VarDecl>* varList;
+    vector<Param>* paramList;
 
-#line 117 "parser.tab.hh"
+#line 139 "parser.tab.hh"
 
 };
 typedef union YYSTYPE YYSTYPE;

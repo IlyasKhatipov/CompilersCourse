@@ -1,24 +1,22 @@
+
 class C is
-  var x : 10.1.2.3
-  method Foo(a : Float ) : Float => a
+  var x : Float;
+  method Foo(a : Float) : Float => a
 end
 
-class Animal {
-  void speak() {
-    output("...");
-  }
-}
+class Animal is
+  method speak() : Void => 
+    "..."
+end
 
-class Dog : Animal {
-  void bark() {
-    output("woof");
-  }
-}
+class Dog is
+  method bark() : Void => 
+    "woof"
+end
 
-class Main {
-  void main() {
-    Dog d;
-    d.speak();
-    d.bark();
-  }
-}
+class Main is
+  method main() : Void =>
+    var d : Dog;
+    d.Foo(0);    # для примера, так как вызовы методов надо упрощать
+    d.bark()
+end

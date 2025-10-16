@@ -459,8 +459,9 @@ int currentLine = 1;
 int currentCol = 1;
 
 #define RET(t) do { return t; } while(0)
-#line 463 "lex.yy.cc"
+#define TRACE(name) cerr << "LEX: " << name << " [" << (yytext?yytext:"") << "] at " << currentLine << ":" << currentCol << "\n";
 #line 464 "lex.yy.cc"
+#line 465 "lex.yy.cc"
 
 #define INITIAL 0
 
@@ -592,10 +593,10 @@ YY_DECL
 		}
 
 	{
-#line 21 "lexer.l"
+#line 22 "lexer.l"
 
 
-#line 599 "lex.yy.cc"
+#line 600 "lex.yy.cc"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -654,182 +655,191 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 23 "lexer.l"
+#line 24 "lexer.l"
 { currentCol += yyleng; }
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 24 "lexer.l"
+#line 25 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 25 "lexer.l"
+#line 26 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 26 "lexer.l"
+#line 27 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 28 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(CLASS); }
+#line 29 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("CLASS"); RET(CLASS); }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 29 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(IS); }
+#line 30 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("IS"); RET(IS); }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 30 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(END); }
+#line 31 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("END"); RET(END); }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 31 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(VAR); }
+#line 32 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("VAR"); RET(VAR); }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 32 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(EXTENDS); }
+#line 33 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("EXTENDS"); RET(EXTENDS); }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 33 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(METHOD); }
+#line 34 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("METHOD"); RET(METHOD); }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 34 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(THIS); }
+#line 35 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("THIS"); RET(THIS); }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 35 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(RETURN); }
+#line 36 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("RETURN"); RET(RETURN); }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 36 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(IF); }
+#line 37 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("IF"); RET(IF); }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 37 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(THEN); }
+#line 38 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("THEN"); RET(THEN); }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 38 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(ELSE); }
+#line 39 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("ELSE"); RET(ELSE); }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 39 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(WHILE); }
+#line 40 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("WHILE"); RET(WHILE); }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 40 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(LOOP); }
+#line 41 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("LOOP"); RET(LOOP); }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 42 "lexer.l"
-{ currentCol += yyleng; yylval.str = strdup(yytext); RET(BOOLEAN); }
+#line 43 "lexer.l"
+{ currentCol += yyleng; yylval.str = strdup(yytext); TRACE("BOOLEAN"); RET(BOOLEAN); }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 44 "lexer.l"
+#line 45 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("IDENTIFIER");
     RET(IDENTIFIER);
 }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 50 "lexer.l"
+#line 52 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("ARROW");
     RET(ARROW);
 }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 56 "lexer.l"
+#line 59 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("REAL");
     RET(REAL);
 }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 62 "lexer.l"
+#line 66 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("INTEGER");
     RET(INTEGER);
 }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 68 "lexer.l"
+#line 73 "lexer.l"
 {
     string s(yytext);
     if (s.size() >= 2) s = s.substr(1, s.size() - 2);
     currentCol += yyleng;
     yylval.str = strdup(s.c_str());
+    TRACE("STRING");
     RET(STRING);
 }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 76 "lexer.l"
+#line 82 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("SYMBOL(:=)");
     RET(SYMBOL);
 }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 82 "lexer.l"
+#line 89 "lexer.l"
 {
     currentCol += yyleng;
     yylval.str = strdup(yytext);
+    TRACE("OP");
     return yytext[0];
 }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 88 "lexer.l"
+#line 96 "lexer.l"
 {
     currentCol += yyleng;
+    TRACE(string("SYM:")+string(yytext).c_str());
     return yytext[0];
 }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 93 "lexer.l"
+#line 102 "lexer.l"
 {
     currentCol += yyleng;
+    TRACE("UNKNOWN");
 }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 97 "lexer.l"
+#line 107 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 833 "lex.yy.cc"
+#line 843 "lex.yy.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1792,6 +1802,6 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 97 "lexer.l"
+#line 107 "lexer.l"
 
 
