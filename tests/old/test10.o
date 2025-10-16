@@ -1,19 +1,16 @@
-class Animal {
-  void speak() {
-    output("...");
-  }
-}
+class Animal is
+  method speak() : Void =>
+    output("...")
+end
 
-class Dog : Animal {
-  void bark() {
-    output("woof");
-  }
-}
+class Dog is
+  method bark() : Void =>
+    output("woof")
+end
 
-class Main {
-  void main() {
-    Dog d;
+class Main is
+  var d : Dog;
+  method main() : Void =>
     d.speak();
-    d.bark();
-  }
-}
+    d.bark()
+end

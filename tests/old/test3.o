@@ -1,7 +1,8 @@
-class Main {
-  void main() {
-    int a; int b;
-    a = 2; b = 3;
-    output(a + b);
-  }
-}
+class Main is
+  var a : Int;
+  var b : Int;
+  method main() : Void =>
+    a := 2;
+    b := 3;
+    output(a + b)
+end

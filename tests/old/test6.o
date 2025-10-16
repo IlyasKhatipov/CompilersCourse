@@ -1,8 +1,6 @@
-class Main {
-  int square(int x) {
-    return x * x;
-  }
-  void main() {
-    output(square(4));
-  }
-}
+class Main is
+  method square(x : Int) : Int => x * x
+  
+  method main() : Void =>
+    output(square(4))
+end

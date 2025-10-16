@@ -1,12 +1,8 @@
-class Main {
-  int add(int a, int b) {
-    return a + b;
-  }
-  int mul(int a, int b) {
-    return a * b;
-  }
-  void main() {
+class Main is
+  method add(a : Int, b : Int) : Int => a + b
+  method mul(a : Int, b : Int) : Int => a * b
+  
+  method main() : Void =>
     output(add(2, 3));
-    output(mul(2, 3));
-  }
-}
+    output(mul(2, 3))
+end
