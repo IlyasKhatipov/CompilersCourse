@@ -87,7 +87,17 @@ extern int yydebug;
     IS = 265,                      /* IS  */
     END = 266,                     /* END  */
     VAR = 267,                     /* VAR  */
-    KEYWORD = 268                  /* KEYWORD  */
+    METHOD = 268,                  /* METHOD  */
+    EXTENDS = 269,                 /* EXTENDS  */
+    THIS = 270,                    /* THIS  */
+    RETURN = 271,                  /* RETURN  */
+    IF = 272,                      /* IF  */
+    THEN = 273,                    /* THEN  */
+    ELSE = 274,                    /* ELSE  */
+    WHILE = 275,                   /* WHILE  */
+    LOOP = 276,                    /* LOOP  */
+    ARROW = 277,                   /* ARROW  */
+    UMINUS = 278                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -96,14 +106,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 35 "parser.y"
+#line 36 "parser.y"
 
     char* str;
     struct VarDecl* var;
     struct ClassDecl* cls;
     vector<VarDecl>* varList;
 
-#line 107 "parser.tab.hh"
+#line 117 "parser.tab.hh"
 
 };
 typedef union YYSTYPE YYSTYPE;
