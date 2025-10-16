@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <cstring>
 #include "parser.tab.hh"
 
 using namespace std;
@@ -108,6 +109,14 @@ LETTER  [A-Za-z_]
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<BooleanToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(BOOLEAN);
 }
 
+{LETTER}({LETTER}|{DIGIT})* {
+    int start=currentCol;
+    currentCol += yyleng;
+    addToken(make_unique<IdentifierToken>(string(yytext),currentLine,start,currentCol-1));
+    yylval.str = strdup(yytext);
+    RET(IDENTIFIER);
+}
+
 {DIGIT}+"."{DIGIT}+ {
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<RealToken>(stod(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(REAL);
 }
@@ -129,8 +138,17 @@ LETTER  [A-Za-z_]
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<IdentifierToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(IDENTIFIER);
 }
 
-":="|"=>"|[.,:();\[\]\{\}] {
-    int start=currentCol; currentCol+=yyleng; addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(SYMBOL);
+":="|"=>" {
+    int start=currentCol; currentCol+=yyleng;
+    addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1));
+    yylval.str = strdup(yytext);
+    RET(SYMBOL);
+}
+
+[.,:();\[\]\{\}] {
+    int start=currentCol; currentCol+=yyleng;
+    addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1));
+    return yytext[0];
 }
 
 . {
@@ -140,3 +158,5 @@ LETTER  [A-Za-z_]
 }
 
 %%
+
+

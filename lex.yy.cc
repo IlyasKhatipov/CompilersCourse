@@ -313,8 +313,8 @@ int yyFlexLexer::yywrap() { return 1; }
 	(yy_hold_char) = *yy_cp; \
 	*yy_cp = '\0'; \
 	(yy_c_buf_p) = yy_cp;
-#define YY_NUM_RULES 17
-#define YY_END_OF_BUFFER 18
+#define YY_NUM_RULES 19
+#define YY_END_OF_BUFFER 20
 /* This struct is not used in this scanner,
    but its presence is necessary. */
 struct yy_trans_info
@@ -324,14 +324,14 @@ struct yy_trans_info
 	};
 static const flex_int16_t yy_accept[74] =
     {   0,
-        0,    0,   18,   16,    1,    3,    4,   16,   15,   12,
-       15,   16,   14,   14,   14,   14,   14,   14,   14,   14,
-       14,   14,   14,    1,    2,    0,   13,    0,    0,   12,
-       15,   14,   14,   14,   14,   14,   14,    9,    6,   14,
-       14,   14,   14,   14,   14,   14,   11,   14,   14,    7,
-       14,   14,   14,   14,   14,   14,   14,   14,    8,   14,
-       14,   14,   14,   14,   14,   10,   14,    5,   14,   14,
-       14,   14,    0
+        0,    0,   20,   18,    1,    3,    4,   18,   17,   13,
+       17,   18,   11,   11,   11,   11,   11,   11,   11,   11,
+       11,   11,   11,    1,    2,    0,   14,    0,    0,   13,
+       16,   11,   11,   11,   11,   11,   11,    9,    6,   11,
+       11,   11,   11,   11,   11,   11,   12,   11,   11,    7,
+       11,   11,   11,   11,   11,   11,   11,   11,    8,   11,
+       11,   11,   11,   11,   11,   10,   11,    5,   11,   11,
+       11,   11,    0
     } ;
 
 static const YY_CHAR yy_ec[256] =
@@ -449,6 +449,7 @@ static const flex_int16_t yy_chk[133] =
 #include <string>
 #include <memory>
 #include <vector>
+#include <cstring>
 #include "parser.tab.hh"
 
 using namespace std;
@@ -526,8 +527,8 @@ int currentCol = 1;
 static inline void addToken(unique_ptr<Token> t) { tokens.push_back(move(t)); }
 
 #define RET(t) do { return t; } while(0)
-#line 530 "lex.yy.cc"
 #line 531 "lex.yy.cc"
+#line 532 "lex.yy.cc"
 
 #define INITIAL 0
 
@@ -659,10 +660,10 @@ YY_DECL
 		}
 
 	{
-#line 91 "lexer.l"
+#line 92 "lexer.l"
 
 
-#line 666 "lex.yy.cc"
+#line 667 "lex.yy.cc"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -721,77 +722,88 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 93 "lexer.l"
+#line 94 "lexer.l"
 { currentCol += yyleng; }
 	YY_BREAK
 case 2:
 /* rule 2 can match eol */
 YY_RULE_SETUP
-#line 94 "lexer.l"
+#line 95 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 95 "lexer.l"
+#line 96 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 96 "lexer.l"
+#line 97 "lexer.l"
 { currentLine++; currentCol = 1; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 98 "lexer.l"
+#line 99 "lexer.l"
 { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("class", currentLine,start,currentCol-1)); RET(CLASS); }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 99 "lexer.l"
+#line 100 "lexer.l"
 { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("is", currentLine,start,currentCol-1)); RET(IS); }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 100 "lexer.l"
+#line 101 "lexer.l"
 { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("end", currentLine,start,currentCol-1)); RET(END); }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 101 "lexer.l"
+#line 102 "lexer.l"
 { int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>("var", currentLine,start,currentCol-1)); RET(VAR); }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 103 "lexer.l"
+#line 104 "lexer.l"
 {
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<KeywordToken>(yytext, currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(KEYWORD);
 }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 107 "lexer.l"
+#line 108 "lexer.l"
 {
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<BooleanToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(BOOLEAN);
 }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 111 "lexer.l"
+#line 112 "lexer.l"
 {
-    int start=currentCol; currentCol+=yyleng; addToken(make_unique<RealToken>(stod(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(REAL);
+    int start=currentCol;
+    currentCol += yyleng;
+    addToken(make_unique<IdentifierToken>(string(yytext),currentLine,start,currentCol-1));
+    yylval.str = strdup(yytext);
+    RET(IDENTIFIER);
 }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 115 "lexer.l"
+#line 120 "lexer.l"
 {
-    int start=currentCol; currentCol+=yyleng; addToken(make_unique<IntegerToken>(stoi(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(INTEGER);
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<RealToken>(stod(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(REAL);
 }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 119 "lexer.l"
+#line 124 "lexer.l"
+{
+    int start=currentCol; currentCol+=yyleng; addToken(make_unique<IntegerToken>(stoi(string(yytext)),currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(INTEGER);
+}
+	YY_BREAK
+case 14:
+YY_RULE_SETUP
+#line 128 "lexer.l"
 {
     int start=currentCol; currentCol+=yyleng;
     string s(yytext);
@@ -801,35 +813,47 @@ YY_RULE_SETUP
     RET(STRING);
 }
 	YY_BREAK
-case 14:
+case 15:
 YY_RULE_SETUP
-#line 128 "lexer.l"
+#line 137 "lexer.l"
 {
     int start=currentCol; currentCol+=yyleng; addToken(make_unique<IdentifierToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(IDENTIFIER);
 }
 	YY_BREAK
-case 15:
-YY_RULE_SETUP
-#line 132 "lexer.l"
-{
-    int start=currentCol; currentCol+=yyleng; addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1)); yylval.str=strdup(yytext); RET(SYMBOL);
-}
-	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 136 "lexer.l"
+#line 141 "lexer.l"
+{
+    int start=currentCol; currentCol+=yyleng;
+    addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1));
+    yylval.str = strdup(yytext);
+    RET(SYMBOL);
+}
+	YY_BREAK
+case 17:
+YY_RULE_SETUP
+#line 148 "lexer.l"
+{
+    int start=currentCol; currentCol+=yyleng;
+    addToken(make_unique<SymbolToken>(yytext,currentLine,start,currentCol-1));
+    return yytext[0];
+}
+	YY_BREAK
+case 18:
+YY_RULE_SETUP
+#line 154 "lexer.l"
 {
     int start=currentCol; currentCol+=yyleng;
     cerr << "Unknown char at line " << currentLine << " col " << start << ": '" << yytext[0] << "'\n";
     addToken(make_unique<UnknownToken>(yytext,currentLine,start,currentCol-1));
 }
 	YY_BREAK
-case 17:
+case 19:
 YY_RULE_SETUP
-#line 142 "lexer.l"
+#line 160 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 833 "lex.yy.cc"
+#line 857 "lex.yy.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -1792,6 +1816,8 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 142 "lexer.l"
+#line 160 "lexer.l"
+
+
 
 
