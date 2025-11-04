@@ -1,44 +1,25 @@
-#include <iostream>
-#include <filesystem>
-#include <fstream>
-#include <string>
 #include <cstdio>
+#include <iostream>
+extern FILE* yyin;
+extern int yyparse();
+extern void printAST();
 
-extern "C" {
-    extern int yylex();       // сама функция лексера
-    extern FILE* yyin;        // входной поток для лексера
-    extern char* yytext;      // текущий текст токена
-}
-
-
-const std::string TEST_DIR = "tests";
-
-int main() {
-    namespace fs = std::filesystem;
-
-    // Перебор файлов в tests/
-    for (const auto& entry : fs::directory_iterator(TEST_DIR)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".o") {
-            std::string filename = entry.path().string();
-            std::cout << "=== Running lexer on " << filename << " ===\n";
-
-            FILE* file = fopen(filename.c_str(), "r");
-            if (!file) {
-                std::cerr << "Failed to open file: " << filename << "\n";
-                continue;
-            }
-
-            yyin = file;
-
-            int token;
-            while ((token = yylex()) != 0) {
-                std::cout << "Token: " << token << "  (" << yytext << ")\n";
-            }
-
-            fclose(file);
-            std::cout << "\n";
-        }
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <input-file>\n";
+        return 1;
     }
-
-    return 0;
+    yyin = fopen(argv[1], "r");
+    if (!yyin) {
+        std::cerr << "Failed to open input file\n";
+        return 1;
+    }
+    int res = yyparse();
+    if (res == 0) {
+        printAST();
+    } else {
+        std::cerr << "Parsing failed\n";
+    }
+    fclose(yyin);
+    return res;
 }

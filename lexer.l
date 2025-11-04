@@ -1,5 +1,4 @@
 %option noyywrap
-%option c++
 
 %{
 #include <iostream>
@@ -8,8 +7,10 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
-
-
+#include "parser.hpp"
+#include "ast.h"
+#undef yyFlexLexer
+extern YYSTYPE yylval;
 using namespace std;
 
 class Token {
@@ -79,149 +80,88 @@ public:
     void print() const override { cout << "UNKNOWN(" << text << ")\n"; }
 };
 
-vector<unique_ptr<Token>> tokens;
 int currentLine = 1;
 int currentCol = 1;
 
-static inline void addToken(unique_ptr<Token> t) { tokens.push_back(move(t)); }
-
 %}
 
-
-DIGIT   [0-9]
-LETTER  [A-Za-z_]
-
 %%
 
-[ \t]+            { currentCol += yyleng; }
-\r\n              { currentLine++; currentCol = 1; }
-\n                { currentLine++; currentCol = 1; }
-\r                { currentLine++; currentCol = 1; }
+[ \t]+              { currentCol += yyleng; /* игнорируем */ }
+\r?\n               { currentLine++; currentCol = 1; }
 
-
-"class"|"extends"|"is"|"end"|"var"|"method"|"this"|"return"|"if"|"then"|"else"|"while"|"loop" {
-    int start = currentCol;
+"if"|"else"|"while"|"for"|"return"|"true"|"false"|"class"|"extends"|"is"|"end"|"var"|"method"|"this"|"then"|"loop" {
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    addToken(make_unique<KeywordToken>(string(yytext), currentLine, start, currentCol - 1));
+    if (strcmp(yytext, "if") == 0) return IF;
+    if (strcmp(yytext, "else") == 0) return ELSE;
+    if (strcmp(yytext, "while") == 0) return WHILE;
+    if (strcmp(yytext, "for") == 0) return LOOP; // если надо FOR - добавь
+    if (strcmp(yytext, "return") == 0) return RETURN;
+    if (strcmp(yytext, "true") == 0) return TRUE;
+    if (strcmp(yytext, "false") == 0) return FALSE;
+    if (strcmp(yytext, "class") == 0) return CLASS;
+    if (strcmp(yytext, "extends") == 0) return EXTENDS;
+    if (strcmp(yytext, "is") == 0) return IS;
+    if (strcmp(yytext, "end") == 0) return END;
+    if (strcmp(yytext, "var") == 0) return VAR;
+    if (strcmp(yytext, "method") == 0) return METHOD;
+    if (strcmp(yytext, "this") == 0) return THIS;
+    if (strcmp(yytext, "then") == 0) return THEN;
+    if (strcmp(yytext, "loop") == 0) return LOOP;
+    return IDENTIFIER; // если не keyword — идентификатор
 }
 
-
-"true"|"false" {
-    int start = currentCol;
+[0-9]+\.[0-9]+ {
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    addToken(make_unique<BooleanToken>(string(yytext), currentLine, start, currentCol - 1));
+    return REAL;
 }
 
-
-{DIGIT}+\.{DIGIT}+ {
-    int start = currentCol;
+[0-9]+ {
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    if (yytext[yyleng] == '.') {
-        addToken(make_unique<UnknownToken>(string(yytext), currentLine, start, currentCol - 1));
-        cerr << "Invalid real number at line " << currentLine << ", col " << start << ": " << yytext << "\n";
-    } else {
-        addToken(make_unique<RealToken>(stod(string(yytext)), currentLine, start, currentCol - 1));
-    }
+    return INTEGER;
 }
 
-{DIGIT}+(\.{DIGIT}+)+ {
-    int start = currentCol;
+[A-Za-z_][A-Za-z0-9_]* {
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    string text(yytext);
-    size_t countDots = std::count(text.begin(), text.end(), '.');
-    if (countDots > 1) {
-        addToken(make_unique<UnknownToken>(text, currentLine, start, currentCol - 1));
-        cerr << "Invalid real number at line " << currentLine << ", col " << start << ": " << text << "\n";
-    } else {
-        addToken(make_unique<RealToken>(stod(text), currentLine, start, currentCol - 1));
-    }
+    return IDENTIFIER;
 }
 
-
-
-{DIGIT}+ {
-    int start = currentCol;
+\"([^\\\"]|\\.)*\" {
+    string val(yytext + 1, yyleng - 2);
+    yylval.str = strdup(val.c_str());
+    int startCol = currentCol;
     currentCol += yyleng;
-    addToken(make_unique<IntegerToken>(stoi(string(yytext)), currentLine, start, currentCol - 1));
+    return STRING;
 }
 
-
-\"([^"\\\n]|\\.)*\" {
-    int start = currentCol;
+(:=|=>|[+\-*/=(){};,<>:\[\]]) {
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    string s(yytext);
-    if (s.size() >= 2) s = s.substr(1, s.size() - 2); /* remove surrounding " */
-    /* Unescape common sequences */
-    string unescaped;
-    for (size_t i = 0; i < s.size(); ++i) {
-        if (s[i] == '\\' && i + 1 < s.size()) {
-            char c = s[i+1];
-            switch (c) {
-                case 'n': unescaped.push_back('\n'); break;
-                case 't': unescaped.push_back('\t'); break;
-                case 'r': unescaped.push_back('\r'); break;
-                case '\\': unescaped.push_back('\\'); break;
-                case '"': unescaped.push_back('"'); break;
-                default: unescaped.push_back(c); break;
-            }
-            ++i;
-        } else {
-            unescaped.push_back(s[i]);
-        }
-    }
-    addToken(make_unique<StringToken>(unescaped, currentLine, start, currentCol - 1));
+    if (strcmp(yytext, ":") == 0) return COLON;
+    if (strcmp(yytext, ";") == 0) return SEMI;
+    if (strcmp(yytext, "(") == 0) return LPAREN;
+    if (strcmp(yytext, ")") == 0) return RPAREN;
+    if (strcmp(yytext, ",") == 0) return COMMA;
+    if (strcmp(yytext, ".") == 0) return DOT;
+    if (strcmp(yytext, ":=") == 0) return ASSIGN;
+    if (strcmp(yytext, "=>") == 0) return ARROW;
+    return SYMBOL;
 }
-
-
-{LETTER}({LETTER}|{DIGIT})* {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<IdentifierToken>(string(yytext), currentLine, start, currentCol - 1));
-}
-
-
-":="|"=>" {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<SymbolToken>(string(yytext), currentLine, start, currentCol - 1));
-}
-
-
-[.,:()\[\]\{\}] {
-    int start = currentCol;
-    currentCol += yyleng;
-    addToken(make_unique<SymbolToken>(string(yytext), currentLine, start, currentCol - 1));
-}
-
 
 . {
-    int start = currentCol;
-    /* yytext may be multichar for some patterns, but here it's single char */
+    yylval.str = strdup(yytext);
+    int startCol = currentCol;
     currentCol += yyleng;
-    cerr << "Unknown char at line " << currentLine << " col " << start << ": '" << yytext[0] << "'\n";
-    addToken(make_unique<UnknownToken>(string(yytext), currentLine, start, currentCol - 1));
+    return UNKNOWN;
 }
 
 %%
-
-int main(int argc, char **argv) {
-    yyFlexLexer lexer;
-
-    std::ifstream file;
-    if (argc > 1) {
-        file.open(argv[1]);
-        if (!file.is_open()) {
-            perror("File opening failed");
-            return 1;
-        }
-        lexer.switch_streams(&file, &std::cout);
-    }
-
-    while (lexer.yylex() != 0) {
-
-    }
-
-    for (auto &t : tokens) t->print();
-
-    return 0;
-}
