@@ -1,152 +1,229 @@
-%define parse.error verbose
-
 %{
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
-#include <iostream>
-#include <memory>
-#include <vector>
-#include "ast.h"
+#include <cstring>
 #include <string>
+#include <vector>
+#include "ast.hpp"
+#include "tokens.hpp"
 
-using namespace std;
+extern int yylex(void);
+extern int yylineno;
+void yyerror(const char* s);
 
-unique_ptr<ProgramNode> g_program = nullptr;
-size_t parserTokIndex = 0;
-vector<SimpleToken> simpleTokens;
-
-void yyerror(const char *s) {
-    cerr << "Parse error: " << s << "\n";
-}
-
-void printAST() {
-    if (g_program) {
-        g_program->print(0);
-    } else {
-        cout << "No AST generated.\n";
-    }
-}
+AST::Program* g_program = nullptr;
 %}
 
 %code requires {
-    #include <vector>
-    class ASTNode;  // forward declaration
+  #include <vector>
+  namespace AST {
+    struct Node;
+    struct Program;
+    struct ClassDecl;
+    struct VarDecl;
+    struct Expr;
+    struct Stmt;
+    struct MethodDecl;
+    struct Param;
+  }
 }
+
+%defines "parser.hpp"
+%define parse.error verbose
 
 %union {
-    char* str;
-    ASTNode* node;
-    std::vector<ASTNode*>* vec;
+    long long                      ival;
+    char*                          cstr;
+    AST::Program*                  program;
+    AST::ClassDecl*                classdecl;
+    AST::VarDecl*                  vardecl;
+    AST::Expr*                     expr;
+    AST::Stmt*                     stmt;
+    AST::MethodDecl*               methoddecl;
+    AST::Param*                    param;
+    AST::Node*                     node;
+    std::vector<AST::ClassDecl*>*  classlist;
+    std::vector<AST::Node*>*       memberlist;
+    std::vector<AST::VarDecl*>*    varlist;
+    std::vector<AST::Param*>*      paramlist;
 }
 
-%token CLASS EXTENDS IS END VAR METHOD THIS RETURN IF THEN ELSE WHILE LOOP TRUE FALSE
-%token <str> IDENTIFIER INTEGER REAL STRING
-%token SYMBOL UNKNOWN
-%token COLON SEMI LPAREN RPAREN COMMA DOT ASSIGN ARROW
+%token CLASS VAR IS END
+%token METHOD RETURN IF THEN ELSE
+%token TRUE FALSE
+%token COLON SEMICOLON COMMA
+%token LPAREN RPAREN LBRACE RBRACE
+%token ASSIGN ARROW PLUS MINUS STAR SLASH
+%token <cstr> IDENTIFIER
+%token <cstr> TYPE_NAME
+%token <ival> INT_LITERAL
 
-%type <vec> top_list class_body method_body
-%type <node> top_item class_decl var_decl method_decl class_member method_member
-%type <str> maybe_type class_opt_ext
-%start program
-
-%%
-
-program:
-    top_list {
-        g_program = make_unique<ProgramNode>();
-        if ($1) {
-            for (ASTNode* p : *$1) {
-                g_program->decls.emplace_back(unique_ptr<ASTNode>(p));
-            }
-            delete $1;
-        }
-    }
-;
-
-top_list:
-    /* empty */ { $$ = new vector<ASTNode*>(); }
-  | top_list top_item {
-        $$ = $1;
-        if ($2) $$->push_back($2);
-    }
-;
-
-top_item:
-    class_decl { $$ = $1; }
-  | var_decl   { $$ = $1; }
-  | method_decl { $$ = $1; }
-;
-
-class_decl:
-    CLASS IDENTIFIER class_opt_ext IS class_body END {
-        auto cn = new ClassNode($2 ? string($2) : string());
-        if ($3) cn->extendsName = string($3);
-        if ($5) {
-            for (ASTNode* m : *$5) cn->members.emplace_back(unique_ptr<ASTNode>(m));
-            delete $5;
-        }
-        if ($2) free($2);
-        if ($3) free($3);
-        $$ = cn;
-    }
-;
-
-class_opt_ext:
-    /* empty */ { $$ = nullptr; }
-  | EXTENDS IDENTIFIER { $$ = $2; }
-;
-
-class_body:
-    /* empty */ { $$ = new vector<ASTNode*>(); }
-  | class_body class_member {
-        $$ = $1;
-        if ($2) $$->push_back($2);
-    }
-;
-
-class_member:
-    var_decl { $$ = $1; }
-  | method_decl { $$ = $1; }
-;
-
-var_decl:
-    VAR IDENTIFIER maybe_type SEMI {
-        auto vn = new VarNode($2 ? string($2) : string(), $3 ? string($3) : string());
-        if ($2) free($2);
-        if ($3) free($3);
-        $$ = vn;
-    }
-;
-
-maybe_type:
-    /* empty */ { $$ = nullptr; }
-  | COLON IDENTIFIER { $$ = $2; }
-;
-
-method_decl:
-    METHOD IDENTIFIER LPAREN RPAREN IS method_body END {
-        auto mn = new MethodNode($2 ? string($2) : string());
-        if ($6) {
-            for (ASTNode* b : *$6) mn->body.emplace_back(unique_ptr<ASTNode>(b));
-            delete $6;
-        }
-        if ($2) free($2);
-        $$ = mn;
-    }
-;
-
-method_body:
-    /* empty */ { $$ = new vector<ASTNode*>(); }
-  | method_body method_member {
-        $$ = $1;
-        if ($2) $$->push_back($2);
-    }
-;
-
-method_member:
-    var_decl { $$ = $1; }
-;
+%type  <program>   program
+%type  <classlist> class_list
+%type  <classdecl> class_decl
+%type  <memberlist> class_body member_list
+%type  <node>      member
+%type  <vardecl>   var_decl
+%type  <methoddecl> method_decl
+%type  <paramlist> opt_params param_list
+%type  <param>     param
+%type  <stmt>      method_body stmt if_stmt
+%type  <expr>      expr additive_expr multiplicative_expr unary_expr primary_expr
 
 %%
 
-int yylex(void);
+program
+    : class_list
+      {
+        g_program = new AST::Program();
+        for (auto* c : *$1) g_program->classes.push_back(c);
+        delete $1;
+      }
+    ;
+
+class_list
+    : class_list class_decl
+      { $$ = $1; $1->push_back($2); }
+    | class_decl
+      { $$ = new std::vector<AST::ClassDecl*>(); $$->push_back($1); }
+    ;
+
+class_decl
+    : CLASS IDENTIFIER IS class_body END
+      {
+        $$ = new AST::ClassDecl($2);
+        for (auto* n : *$4) {
+            if (auto* v = dynamic_cast<AST::VarDecl*>(n)) $$->fields.push_back(v);
+            else if (auto* m = dynamic_cast<AST::MethodDecl*>(n)) $$->methods.push_back(m);
+            else delete n;
+        }
+        free($2);
+        delete $4;
+      }
+    ;
+
+class_body
+    : member_list { $$ = $1; }
+    | { $$ = new std::vector<AST::Node*>(); }
+    ;
+
+member_list
+    : member_list member
+      { $$ = $1; $1->push_back($2); }
+    | member
+      { $$ = new std::vector<AST::Node*>(); $$->push_back($1); }
+    ;
+
+member
+    : var_decl     { $$ = $1; }
+    | method_decl  { $$ = $1; }
+    ;
+
+var_decl
+    : VAR IDENTIFIER COLON TYPE_NAME SEMICOLON
+      {
+        $$ = new AST::VarDecl($2, $4, nullptr);
+        free($2); free($4);
+      }
+    | VAR IDENTIFIER COLON TYPE_NAME ASSIGN expr SEMICOLON
+      {
+        $$ = new AST::VarDecl($2, $4, $6);
+        free($2); free($4);
+      }
+    ;
+
+method_decl
+    : METHOD IDENTIFIER LPAREN opt_params RPAREN COLON TYPE_NAME ARROW method_body
+      {
+        $$ = new AST::MethodDecl($2, $7, $9);
+        if ($4) { for (auto* p : *$4) $$->params.push_back(p); delete $4; }
+        free($2); free($7);
+      }
+    ;
+
+opt_params
+    : param_list { $$ = $1; }
+    | { $$ = new std::vector<AST::Param*>(); }
+    ;
+
+param_list
+    : param_list COMMA param
+      { $$ = $1; $1->push_back($3); }
+    | param
+      { $$ = new std::vector<AST::Param*>(); $$->push_back($1); }
+    ;
+
+param
+    : IDENTIFIER COLON TYPE_NAME
+      {
+        $$ = new AST::Param($1, $3);
+        free($1); free($3);
+      }
+    ;
+
+method_body
+    : expr
+      { $$ = new AST::ReturnStmt($1); }
+    | stmt
+      { $$ = $1; }
+    ;
+
+stmt
+    : RETURN expr
+      { $$ = new AST::ReturnStmt($2); }
+    | if_stmt
+      { $$ = $1; }
+    ;
+
+if_stmt
+    : IF expr THEN stmt ELSE stmt
+      { $$ = new AST::IfStmt($2, $4, $6); }
+    ;
+
+expr
+    : additive_expr { $$ = $1; }
+    ;
+
+additive_expr
+    : additive_expr PLUS multiplicative_expr
+      { $$ = new AST::Binary(AST::BinOp::Add, $1, $3); }
+    | additive_expr MINUS multiplicative_expr
+      { $$ = new AST::Binary(AST::BinOp::Sub, $1, $3); }
+    | multiplicative_expr
+      { $$ = $1; }
+    ;
+
+multiplicative_expr
+    : multiplicative_expr STAR unary_expr
+      { $$ = new AST::Binary(AST::BinOp::Mul, $1, $3); }
+    | multiplicative_expr SLASH unary_expr
+      { $$ = new AST::Binary(AST::BinOp::Div, $1, $3); }
+    | unary_expr
+      { $$ = $1; }
+    ;
+
+unary_expr
+    : MINUS unary_expr
+      { $$ = new AST::Unary(AST::Unary::Op::Neg, $2); }
+    | primary_expr
+      { $$ = $1; }
+    ;
+
+primary_expr
+    : INT_LITERAL
+      { $$ = new AST::IntLiteral($1); }
+    | TRUE
+      { $$ = new AST::BoolLiteral(true); }
+    | FALSE
+      { $$ = new AST::BoolLiteral(false); }
+    | IDENTIFIER
+      { $$ = new AST::Identifier($1); free($1); }
+    | LPAREN expr RPAREN
+      { $$ = $2; }
+    ;
+
+%%
+
+void yyerror(const char* s) {
+    std::fprintf(stderr, "Parse error at line %d: %s\n", yylineno, s);
+}

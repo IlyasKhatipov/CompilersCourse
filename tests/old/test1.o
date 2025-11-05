@@ -1,5 +1,4 @@
-class Main {
-  void main() {
-    output("Hello, World!");
-  }
-}
+class Main is
+  method main() : Void =>
+    output("Hello, World!")
+end

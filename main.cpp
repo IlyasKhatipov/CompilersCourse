@@ -1,25 +1,35 @@
 #include <cstdio>
 #include <iostream>
-extern FILE* yyin;
-extern int yyparse();
-extern void printAST();
+#include "ast.hpp"
+#include "tokens.hpp"
 
-int main(int argc, char **argv) {
+extern int  yyparse(void);
+extern FILE* yyin;
+extern AST::Program* g_program;
+
+int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <input-file>\n";
+        std::cerr << "Usage: " << argv[0] << " <source .o>\n";
         return 1;
     }
-    yyin = fopen(argv[1], "r");
+    yyin = std::fopen(argv[1], "r");
     if (!yyin) {
-        std::cerr << "Failed to open input file\n";
+        std::perror("fopen");
         return 1;
     }
-    int res = yyparse();
-    if (res == 0) {
-        printAST();
+    std::cout << "=== LEXER TOKENS ===\n";
+    int rc = yyparse();
+    std::fclose(yyin);
+    if (rc == 0) {
+        std::cout << "\n=== AST ===\n";
+        if (g_program) {
+            g_program->print(std::cout);
+            delete g_program;
+            g_program = nullptr;
+        }
+        return 0;
     } else {
-        std::cerr << "Parsing failed\n";
+        std::cerr << "Parse failed.\n";
+        return 2;
     }
-    fclose(yyin);
-    return res;
 }

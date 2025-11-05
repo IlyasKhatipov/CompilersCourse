@@ -1,21 +1,19 @@
-class Point {
-  int x;
-  int y;
-
-  void init(int a, int b) {
-    x = a; y = b;
-  }
-
-  void print() {
+class Point is
+  var x : Int;
+  var y : Int;
+  
+  method init(a : Int, b : Int) : Void =>
+    x := a;
+    y := b
+    
+  method print() : Void =>
     output(x);
-    output(y);
-  }
-}
+    output(y)
+end
 
-class Main {
-  void main() {
-    Point p;
+class Main is
+  var p : Point;
+  method main() : Void =>
     p.init(3, 4);
-    p.print();
-  }
-}
+    p.print()
+end

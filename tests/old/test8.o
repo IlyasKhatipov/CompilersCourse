@@ -1,7 +1,6 @@
-class Main {
-  void main() {
-    int x;
+class Main is
+  var x : Int;
+  method main() : Void =>
     input(x);
-    output(x + 1);
-  }
-}
+    output(x + 1)
+end

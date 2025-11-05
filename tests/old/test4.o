@@ -1,11 +1,10 @@
-class Main {
-  void main() {
-    int x;
-    x = 10;
-    if (x > 5) {
-      output(1);
-    } else {
-      output(0);
-    }
-  }
-}
+class Main is
+  var x : Int;
+  method main() : Void =>
+    x := 10;
+    if x > 5 then
+      output(1)
+    else
+      output(0)
+    end
+end
