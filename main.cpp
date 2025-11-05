@@ -1,25 +1,45 @@
+// main.cpp
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
-extern FILE* yyin;
-extern int yyparse();
-extern void printAST();
+#include "ast.hpp"
 
-int main(int argc, char **argv) {
+extern int yyparse(void);
+extern FILE* yyin;
+extern AST::Program* g_program;
+
+int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <input-file>\n";
+        std::cerr << "Usage: ./mycompiler <input .o>\n";
         return 1;
     }
-    yyin = fopen(argv[1], "r");
+    const char* path = argv[1];
+    yyin = fopen(path, "r");
     if (!yyin) {
-        std::cerr << "Failed to open input file\n";
+        std::perror("fopen");
         return 1;
     }
-    int res = yyparse();
-    if (res == 0) {
-        printAST();
+
+    // Парсим; лексер уже печатает поток токенов:
+    // например:
+    // CLASS
+    // IDENTIFIER(Point)
+    // IS
+    // VAR
+    // IDENTIFIER(x)
+    // COLON
+    // TYPE(Int)
+    // ...
+    if (yyparse() == 0) {
+        // Печать нормализованного AST (раскладывание)
+        if (g_program) {
+            std::cout << "\n--- AST ---\n";
+            g_program->printNormalized(std::cout);
+        }
     } else {
-        std::cerr << "Parsing failed\n";
+        std::cerr << "Parsing failed.\n";
     }
+
     fclose(yyin);
-    return res;
+    return 0;
 }
