@@ -9,8 +9,8 @@ parser.cpp parser.hpp: parser.y
 lexer.cpp: lexer.l parser.hpp
 	flex -o lexer.cpp lexer.l
 
-mycompiler: parser.cpp lexer.cpp main.cpp
-	$(CXX) $(CXXFLAGS) -o $@ parser.cpp lexer.cpp main.cpp -lfl
+mycompiler: parser.cpp lexer.cpp main.cpp semantic.cpp
+	$(CXX) $(CXXFLAGS) -o $@ parser.cpp lexer.cpp main.cpp semantic.cpp -lfl
 
 clean:
 	rm -f parser.cpp parser.hpp lexer.cpp mycompiler
