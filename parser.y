@@ -14,6 +14,17 @@ void yyerror(const char* s);
 AST::Program* g_program = nullptr;
 %}
 
+/* Вставляется в parser.hpp */
+%code requires {
+  #include <vector>
+  namespace AST {
+    struct Program;
+    struct ClassDecl;
+    struct VarDecl;
+    struct Expr;
+  }
+}
+
 %defines "parser.hpp"
 %define parse.error verbose
 
