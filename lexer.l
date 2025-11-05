@@ -63,8 +63,7 @@ WS      [ \t\r]+
 "*"         { push_sym(TokenKind::STAR,       yytext); return STAR; }
 "/"         { push_sym(TokenKind::SLASH,      yytext); return SLASH; }
 
-"//".*      { yycolumn += yyleng; /* пропускаем */ }
-
+"//".*      { yycolumn += yyleng; }
 {WS}        { yycolumn += yyleng; }
 \n          { yycolumn = 1; }
 

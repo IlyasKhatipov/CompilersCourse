@@ -1,4 +1,3 @@
-// ast.hpp
 #pragma once
 #include <string>
 #include <vector>
@@ -15,8 +14,6 @@ struct Node {
 inline void doIndent(std::ostream& os, int n) {
     for (int i = 0; i < n; ++i) os << "  ";
 }
-
-// ==== Expressions ====
 
 struct Expr : Node { };
 
@@ -44,7 +41,6 @@ struct Binary : Expr {
     Expr* rhs;
     Binary(BinOp o, Expr* l, Expr* r) : op(o), lhs(l), rhs(r) {}
     ~Binary() { delete lhs; delete rhs; }
-
     static const char* opToStr(BinOp o) {
         switch (o) {
             case BinOp::Add: return "+";
@@ -76,17 +72,13 @@ struct Unary : Expr {
     }
 };
 
-// ==== Declarations / Program ====
-
 struct VarDecl : Node {
     std::string name;
     std::string typeName;
-    Expr* init; // может быть nullptr
-
+    Expr* init;
     VarDecl(std::string n, std::string t, Expr* i)
         : name(std::move(n)), typeName(std::move(t)), init(i) {}
     ~VarDecl() { delete init; }
-
     void print(std::ostream& os, int indent) const override {
         doIndent(os, indent);
         os << "var " << name << " : " << typeName;
@@ -102,10 +94,8 @@ struct VarDecl : Node {
 struct ClassDecl : Node {
     std::string name;
     std::vector<VarDecl*> fields;
-
     explicit ClassDecl(std::string n) : name(std::move(n)) {}
     ~ClassDecl() { for (auto* v : fields) delete v; }
-
     void print(std::ostream& os, int indent) const override {
         doIndent(os, indent);
         os << "Class: " << name << "\n";
@@ -116,10 +106,9 @@ struct ClassDecl : Node {
 struct Program : Node {
     std::vector<ClassDecl*> classes;
     ~Program() { for (auto* c : classes) delete c; }
-
     void print(std::ostream& os, int indent = 0) const override {
         for (auto* c : classes) c->print(os, indent);
     }
 };
 
-} // namespace AST
+}

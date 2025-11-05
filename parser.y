@@ -1,4 +1,3 @@
-// parser.y
 %{
 #include <cstdio>
 #include <cstdlib>
@@ -15,12 +14,9 @@ void yyerror(const char* s);
 AST::Program* g_program = nullptr;
 %}
 
-/* Явно попросим заголовок "parser.hpp" */
 %defines "parser.hpp"
-/* Подробные сообщения об ошибках */
 %define parse.error verbose
 
-/* Семантические типы */
 %union {
     long long                ival;
     char*                    cstr;
@@ -32,17 +28,14 @@ AST::Program* g_program = nullptr;
     std::vector<AST::VarDecl*>*   varlist;
 }
 
-/* Токены */
 %token CLASS VAR IS END
 %token COLON SEMICOLON COMMA
 %token LPAREN RPAREN LBRACE RBRACE
 %token ASSIGN PLUS MINUS STAR SLASH
-
 %token <cstr> IDENTIFIER
 %token <cstr> TYPE_NAME
 %token <ival> INT_LITERAL
 
-/* Типы нетерминалов */
 %type  <program>   program
 %type  <classlist> class_list
 %type  <classdecl> class_decl
@@ -80,7 +73,7 @@ class_decl
 
 class_body
     : var_decl_list { $$ = $1; }
-    | /* empty */   { $$ = new std::vector<AST::VarDecl*>(); }
+    | { $$ = new std::vector<AST::VarDecl*>(); }
     ;
 
 var_decl_list
@@ -102,8 +95,6 @@ var_decl
         free($2); free($4);
       }
     ;
-
-/* ===== expressions ===== */
 
 expr
     : additive_expr { $$ = $1; }

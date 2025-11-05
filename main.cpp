@@ -1,4 +1,3 @@
-// main.cpp
 #include <cstdio>
 #include <iostream>
 #include "ast.hpp"
@@ -18,11 +17,9 @@ int main(int argc, char** argv) {
         std::perror("fopen");
         return 1;
     }
-
     std::cout << "=== LEXER TOKENS ===\n";
     int rc = yyparse();
     std::fclose(yyin);
-
     if (rc == 0) {
         std::cout << "\n=== AST ===\n";
         if (g_program) {

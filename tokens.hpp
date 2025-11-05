@@ -1,4 +1,3 @@
-// tokens.hpp
 #pragma once
 #include <string>
 #include <vector>
@@ -7,11 +6,8 @@
 #include <cstdint>
 
 enum class TokenKind {
-    // Ключевые
     CLASS, VAR, IS, END,
-    // Идентификаторы / типы / литералы
     IDENTIFIER, TYPE_NAME, INT_LITERAL,
-    // Знаки
     COLON, SEMICOLON, COMMA,
     LPAREN, RPAREN, LBRACE, RBRACE,
     ASSIGN, PLUS, MINUS, STAR, SLASH,
@@ -19,11 +15,10 @@ enum class TokenKind {
 };
 
 struct Token {
-    TokenKind   kind;
+    TokenKind kind;
     std::string lexeme;
-    int         line;
-    int         column;
-
+    int line;
+    int column;
     Token(TokenKind k, std::string lx, int ln, int col)
         : kind(k), lexeme(std::move(lx)), line(ln), column(col) {}
     virtual ~Token() = default;
@@ -81,7 +76,6 @@ inline const char* TokenKindToString(TokenKind k) {
     return "UNKNOWN";
 }
 
-// Хранилище всех токенов для отладки (inline, чтобы не требовать .cpp)
 inline std::vector<std::unique_ptr<Token>> g_tokens;
 
 inline void EmitToken(std::unique_ptr<Token> t) {
