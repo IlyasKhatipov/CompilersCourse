@@ -34,6 +34,14 @@ WS      [ \t\r]+
 "is"        { push_kw(TokenKind::IS,    yytext); return IS; }
 "end"       { push_kw(TokenKind::END,   yytext); return END; }
 
+"method"    { push_kw(TokenKind::METHOD, yytext); return METHOD; }
+"return"    { push_kw(TokenKind::RETURN, yytext); return RETURN; }
+"if"        { push_kw(TokenKind::IF, yytext); return IF; }
+"then"      { push_kw(TokenKind::THEN, yytext); return THEN; }
+"else"      { push_kw(TokenKind::ELSE, yytext); return ELSE; }
+"true"      { push_kw(TokenKind::TRUEKW, yytext); return TRUE; }
+"false"     { push_kw(TokenKind::FALSEKW, yytext); return FALSE; }
+
 "Int"       { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
               yylval.cstr = strdup(yytext); yycolumn += yyleng; return TYPE_NAME; }
 "String"    { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
@@ -50,6 +58,7 @@ WS      [ \t\r]+
               EmitToken(std::make_unique<IntegerToken>(yytext, v, yylineno, yycolumn));
               yylval.ival = v; yycolumn += yyleng; return INT_LITERAL; }
 
+"=>"        { push_sym(TokenKind::ARROW, yytext); return ARROW; }
 ":"         { push_sym(TokenKind::COLON,      yytext); return COLON; }
 ";"         { push_sym(TokenKind::SEMICOLON,  yytext); return SEMICOLON; }
 ","         { push_sym(TokenKind::COMMA,      yytext); return COMMA; }

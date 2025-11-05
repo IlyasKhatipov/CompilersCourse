@@ -7,18 +7,20 @@
 
 enum class TokenKind {
     CLASS, VAR, IS, END,
+    METHOD, RETURN, IF, THEN, ELSE,
+    TRUEKW, FALSEKW,
     IDENTIFIER, TYPE_NAME, INT_LITERAL,
     COLON, SEMICOLON, COMMA,
     LPAREN, RPAREN, LBRACE, RBRACE,
-    ASSIGN, PLUS, MINUS, STAR, SLASH,
+    ASSIGN, ARROW, PLUS, MINUS, STAR, SLASH,
     END_OF_FILE
 };
 
 struct Token {
-    TokenKind kind;
+    TokenKind   kind;
     std::string lexeme;
-    int line;
-    int column;
+    int         line;
+    int         column;
     Token(TokenKind k, std::string lx, int ln, int col)
         : kind(k), lexeme(std::move(lx)), line(ln), column(col) {}
     virtual ~Token() = default;
@@ -56,6 +58,13 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::VAR: return "VAR";
         case TokenKind::IS: return "IS";
         case TokenKind::END: return "END";
+        case TokenKind::METHOD: return "METHOD";
+        case TokenKind::RETURN: return "RETURN";
+        case TokenKind::IF: return "IF";
+        case TokenKind::THEN: return "THEN";
+        case TokenKind::ELSE: return "ELSE";
+        case TokenKind::TRUEKW: return "TRUE";
+        case TokenKind::FALSEKW: return "FALSE";
         case TokenKind::IDENTIFIER: return "IDENTIFIER";
         case TokenKind::TYPE_NAME: return "TYPE_NAME";
         case TokenKind::INT_LITERAL: return "INT_LITERAL";
@@ -67,6 +76,7 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::LBRACE: return "LBRACE";
         case TokenKind::RBRACE: return "RBRACE";
         case TokenKind::ASSIGN: return "ASSIGN";
+        case TokenKind::ARROW: return "ARROW";
         case TokenKind::PLUS: return "PLUS";
         case TokenKind::MINUS: return "MINUS";
         case TokenKind::STAR: return "STAR";

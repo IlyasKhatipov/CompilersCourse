@@ -25,6 +25,14 @@ struct IntLiteral : Expr {
     }
 };
 
+struct BoolLiteral : Expr {
+    bool value;
+    explicit BoolLiteral(bool v) : value(v) {}
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "Bool(" << (value ? "true" : "false") << ")\n";
+    }
+};
+
 struct Identifier : Expr {
     std::string name;
     explicit Identifier(std::string n) : name(std::move(n)) {}
@@ -72,6 +80,34 @@ struct Unary : Expr {
     }
 };
 
+struct Stmt : Node { };
+
+struct ReturnStmt : Stmt {
+    Expr* value;
+    explicit ReturnStmt(Expr* v) : value(v) {}
+    ~ReturnStmt() { delete value; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "return\n";
+        value->print(os, indent + 1);
+    }
+};
+
+struct IfStmt : Stmt {
+    Expr* cond;
+    Stmt* thenS;
+    Stmt* elseS;
+    IfStmt(Expr* c, Stmt* t, Stmt* e) : cond(c), thenS(t), elseS(e) {}
+    ~IfStmt() { delete cond; delete thenS; delete elseS; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "if\n";
+        cond->print(os, indent + 1);
+        doIndent(os, indent); os << "then\n";
+        thenS->print(os, indent + 1);
+        doIndent(os, indent); os << "else\n";
+        elseS->print(os, indent + 1);
+    }
+};
+
 struct VarDecl : Node {
     std::string name;
     std::string typeName;
@@ -91,15 +127,43 @@ struct VarDecl : Node {
     }
 };
 
+struct Param {
+    std::string name;
+    std::string typeName;
+    Param(std::string n, std::string t) : name(std::move(n)), typeName(std::move(t)) {}
+};
+
+struct MethodDecl : Node {
+    std::string name;
+    std::vector<Param*> params;
+    std::string returnType;
+    Stmt* body;
+    MethodDecl(std::string n, std::string rt, Stmt* b)
+        : name(std::move(n)), returnType(std::move(rt)), body(b) {}
+    ~MethodDecl() { for (auto* p : params) delete p; delete body; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "method " << name << "(";
+        for (size_t i = 0; i < params.size(); ++i) {
+            os << params[i]->name << " : " << params[i]->typeName;
+            if (i + 1 < params.size()) os << ", ";
+        }
+        os << ") : " << returnType << "\n";
+        if (body) body->print(os, indent + 1);
+    }
+};
+
 struct ClassDecl : Node {
     std::string name;
     std::vector<VarDecl*> fields;
+    std::vector<MethodDecl*> methods;
     explicit ClassDecl(std::string n) : name(std::move(n)) {}
-    ~ClassDecl() { for (auto* v : fields) delete v; }
+    ~ClassDecl() { for (auto* v : fields) delete v; for (auto* m : methods) delete m; }
     void print(std::ostream& os, int indent) const override {
         doIndent(os, indent);
         os << "Class: " << name << "\n";
         for (auto* v : fields) v->print(os, indent + 1);
+        for (auto* m : methods) m->print(os, indent + 1);
     }
 };
 
