@@ -1,80 +1,83 @@
-%option noyywrap
-%option outfile="lexer.cpp"
-%option c++
+/* lexer.l */
 %{
-#include "tokens.hpp"
-#include "parser.tab.h"  // bison сгенерит
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <string>
+#include "parser.hpp"
+#include "tokens.hpp"
 
-using namespace std;
+int yycolumn = 1;
+extern int yylineno;
 
-static int cur_line = 1;
-static int cur_col  = 1;
-
-#define YY_USER_ACTION \
-    /* обновим столбцы: */ \
-    cur_col += yyleng;
-
-static int start_col_for_rule() {
-    return cur_col - yyleng + 1;
+static inline void push_kw(TokenKind k, const char* text) {
+    EmitToken(std::make_unique<KeywordToken>(k, text, yylineno, yycolumn));
+    yycolumn += yyleng;
 }
-
-// Утилита: создать токен и вывести его
-template <typename T, typename... Args>
-static T* make_token_and_echo(Args&&... args) {
-    T* t = new T(std::forward<Args>(args)...);
-    printToken(t);
-    return t;
+static inline void push_sym(TokenKind k, const char* text) {
+    EmitToken(std::make_unique<SymbolToken>(k, text, yylineno, yycolumn));
+    yycolumn += yyleng;
 }
 %}
 
-ws          [ \t\r]+
-newline     \n
-id          [A-Za-z_][A-Za-z0-9_]*
-intlit      [0-9]+
+/* Упрощаем жизнь: Flex не будет вызывать yywrap из libfl */
+%option noyywrap
+%option nodefault
+%option yylineno
+
+ID      [A-Za-z_][A-Za-z0-9_]*
+INT     [0-9]+
+WS      [ \t\r]+
 
 %%
 
-{ws}         {/* пропуск, столбец уже учтён */}
-{newline}    { cur_line++; cur_col = 1; }
+"class"     { push_kw(TokenKind::CLASS, yytext); return CLASS; }
+"var"       { push_kw(TokenKind::VAR,   yytext); return VAR; }
+"is"        { push_kw(TokenKind::IS,    yytext); return IS; }
+"end"       { push_kw(TokenKind::END,   yytext); return END; }
 
-"class"      { auto t = make_token_and_echo<KeywordToken>(TokenKind::Class, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_CLASS; }
-"is"         { auto t = make_token_and_echo<KeywordToken>(TokenKind::Is, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_IS; }
-"var"        { auto t = make_token_and_echo<KeywordToken>(TokenKind::Var, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_VAR; }
-"end"        { auto t = make_token_and_echo<KeywordToken>(TokenKind::End, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_END; }
+/* Базовые встроенные типы */
+"Int"       { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
+              yylval.cstr = strdup(yytext); yycolumn += yyleng; return TYPE_NAME; }
+"String"    { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
+              yylval.cstr = strdup(yytext); yycolumn += yyleng; return TYPE_NAME; }
+"Bool"      { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
+              yylval.cstr = strdup(yytext); yycolumn += yyleng; return TYPE_NAME; }
+"Float"     { EmitToken(std::make_unique<TypeNameToken>(yytext, yylineno, yycolumn));
+              yylval.cstr = strdup(yytext); yycolumn += yyleng; return TYPE_NAME; }
 
-"Int"        { auto t = make_token_and_echo<TypeToken>("Int", cur_line, start_col_for_rule()); yylval.tok = t; return T_INT_TYPE; }
+/* Идентификаторы */
+{ID}        { EmitToken(std::make_unique<IdentifierToken>(yytext, yylineno, yycolumn));
+              yylval.cstr = strdup(yytext); yycolumn += yyleng; return IDENTIFIER; }
 
-":"          { auto t = make_token_and_echo<SymbolToken>(TokenKind::Colon, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_COLON; }
-";"          { auto t = make_token_and_echo<SymbolToken>(TokenKind::Semicolon, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_SEMI; }
-"="          { auto t = make_token_and_echo<SymbolToken>(TokenKind::Assign, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_ASSIGN; }
-"("          { auto t = make_token_and_echo<SymbolToken>(TokenKind::LParen, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_LPAREN; }
-")"          { auto t = make_token_and_echo<SymbolToken>(TokenKind::RParen, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_RPAREN; }
-"\\+"        { auto t = make_token_and_echo<SymbolToken>(TokenKind::Plus, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_PLUS; }
-"-"          { auto t = make_token_and_echo<SymbolToken>(TokenKind::Minus, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_MINUS; }
-"\\*"        { auto t = make_token_and_echo<SymbolToken>(TokenKind::Star, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_STAR; }
-"/"          { auto t = make_token_and_echo<SymbolToken>(TokenKind::Slash, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_SLASH; }
-"\\."        { auto t = make_token_and_echo<SymbolToken>(TokenKind::Dot, yytext, cur_line, start_col_for_rule()); yylval.tok = t; return T_DOT; }
+/* Целые литералы */
+{INT}       { long long v = atoll(yytext);
+              EmitToken(std::make_unique<IntegerToken>(yytext, v, yylineno, yycolumn));
+              yylval.ival = v; yycolumn += yyleng; return INT_LITERAL; }
 
-{intlit}     {
-                long long v = atoll(yytext);
-                auto t = make_token_and_echo<IntegerToken>(v, yytext, cur_line, start_col_for_rule());
-                yylval.tok = t; return T_INTEGER;
-             }
+/* Знаки и операторы */
+":"         { push_sym(TokenKind::COLON,      yytext); return COLON; }
+";"         { push_sym(TokenKind::SEMICOLON,  yytext); return SEMICOLON; }
+","         { push_sym(TokenKind::COMMA,      yytext); return COMMA; }
+"("         { push_sym(TokenKind::LPAREN,     yytext); return LPAREN; }
+")"         { push_sym(TokenKind::RPAREN,     yytext); return RPAREN; }
+"{"         { push_sym(TokenKind::LBRACE,     yytext); return LBRACE; }
+"}"         { push_sym(TokenKind::RBRACE,     yytext); return RBRACE; }
+"="         { push_sym(TokenKind::ASSIGN,     yytext); return ASSIGN; }
+"+"         { push_sym(TokenKind::PLUS,       yytext); return PLUS; }
+"-"         { push_sym(TokenKind::MINUS,      yytext); return MINUS; }
+"*"         { push_sym(TokenKind::STAR,       yytext); return STAR; }
+"/"         { push_sym(TokenKind::SLASH,      yytext); return SLASH; }
 
-{id}         {
-                std::string s(yytext);
-                // Если не ключевое слово/тип — идентификатор
-                auto t = make_token_and_echo<IdentifierToken>(s, cur_line, start_col_for_rule());
-                yylval.tok = t; return T_IDENTIFIER;
-             }
+/* Комментарии // до конца строки */
+"//".*      { yycolumn += yyleng; /* пропускаем */ }
 
-"//".*       { /* комментарии до конца строки */ }
-"/*"([^*]|\*+[^*/])*\*+"/"   { /* блочный комментарий */ }
+/* Пробельные */
+{WS}        { yycolumn += yyleng; }
+\n          { yycolumn = 1; }
 
-.            {
-                fprintf(stderr, "Unknown char '%s' at %d:%d\n", yytext, cur_line, start_col_for_rule());
-             }
+/* Неожиданные символы */
+.           { std::fprintf(stderr, "Unknown char '%s' at %d:%d\n", yytext, yylineno, yycolumn);
+              yycolumn += yyleng; }
 
 %%
-// yywrap по умолчанию отключён опцией

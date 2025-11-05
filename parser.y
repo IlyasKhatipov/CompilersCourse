@@ -1,122 +1,150 @@
-/* parser.y */
+// parser.y
 %{
 #include <cstdio>
 #include <cstdlib>
-#include <memory>
-#include <vector>
+#include <cstring>
 #include <string>
-#include "tokens.hpp"
+#include <vector>
 #include "ast.hpp"
+#include "tokens.hpp"
 
 extern int yylex(void);
-extern FILE* yyin;
+extern int yylineno;
 void yyerror(const char* s);
 
-using namespace AST;
-
-Program* g_program = nullptr;
+AST::Program* g_program = nullptr;
 %}
 
-%define api.pure full
+/* Явно попросим заголовок "parser.hpp" */
+%defines "parser.hpp"
+/* Подробные сообщения об ошибках */
 %define parse.error verbose
-%define api.prefix {yy}
-%define api.value.type {union}
-%define api.token.prefix {T_}
 
+/* Семантические типы */
 %union {
-  Token* tok;
-  AST::Program* program;
-  AST::ClassDecl* classDecl;
-  std::vector<AST::ClassDecl*>* classList;
-  AST::VarDecl* varDecl;
-  std::vector<AST::VarDecl*>* varList;
-  AST::TypeName* typeName;
-  AST::Expr* expr;
+    long long                ival;
+    char*                    cstr;
+    AST::Program*            program;
+    AST::ClassDecl*          classdecl;
+    AST::VarDecl*            vardecl;
+    AST::Expr*               expr;
+    std::vector<AST::ClassDecl*>* classlist;
+    std::vector<AST::VarDecl*>*   varlist;
 }
 
-%token <tok> CLASS IS VAR END
-%token <tok> IDENTIFIER INT_TYPE INTEGER
-%token <tok> COLON SEMI ASSIGN
-%token <tok> LPAREN RPAREN PLUS MINUS STAR SLASH DOT
+/* Токены */
+%token CLASS VAR IS END
+%token COLON SEMICOLON COMMA
+%token LPAREN RPAREN LBRACE RBRACE
+%token ASSIGN PLUS MINUS STAR SLASH
 
-%type <program> program
-%type <classList> class_list
-%type <classDecl> class_decl
-%type <varList> var_decl_list
-%type <varDecl> var_decl
-%type <typeName> type
-%type <expr> expr term factor
+%token <cstr> IDENTIFIER
+%token <cstr> TYPE_NAME
+%token <ival> INT_LITERAL
+
+/* Типы нетерминалов */
+%type  <program>   program
+%type  <classlist> class_list
+%type  <classdecl> class_decl
+%type  <varlist>   class_body var_decl_list
+%type  <vardecl>   var_decl
+%type  <expr>      expr additive_expr multiplicative_expr unary_expr primary_expr
 
 %%
 
 program
     : class_list
       {
-        auto prog = new Program();
-        for (auto* c : *$1) prog->classes.emplace_back(c);
+        g_program = new AST::Program();
+        for (auto* c : *$1) g_program->classes.push_back(c);
         delete $1;
-        g_program = prog;
-        $$ = prog;
       }
     ;
 
 class_list
-    : class_decl                     { $$ = new std::vector<ClassDecl*>(); $$->push_back($1); }
-    | class_list class_decl          { $$ = $1; $$->push_back($2); }
+    : class_list class_decl
+      { $$ = $1; $1->push_back($2); }
+    | class_decl
+      { $$ = new std::vector<AST::ClassDecl*>(); $$->push_back($1); }
     ;
 
 class_decl
-    : CLASS IDENTIFIER IS var_decl_list END
+    : CLASS IDENTIFIER IS class_body END
       {
-        auto cls = new ClassDecl($2->lexeme);
-        for (auto* v : *$4) cls->fields.emplace_back(v);
+        $$ = new AST::ClassDecl($2);
+        for (auto* v : *$4) $$->fields.push_back(v);
+        free($2);
         delete $4;
-        $$ = cls;
       }
+    ;
+
+class_body
+    : var_decl_list { $$ = $1; }
+    | /* empty */   { $$ = new std::vector<AST::VarDecl*>(); }
     ;
 
 var_decl_list
-    : /* empty */                    { $$ = new std::vector<VarDecl*>(); }
-    | var_decl_list var_decl         { $$ = $1; $$->push_back($2); }
+    : var_decl_list var_decl
+      { $$ = $1; $1->push_back($2); }
+    | var_decl
+      { $$ = new std::vector<AST::VarDecl*>(); $$->push_back($1); }
     ;
 
 var_decl
-    : VAR IDENTIFIER COLON type SEMI
+    : VAR IDENTIFIER COLON TYPE_NAME SEMICOLON
       {
-        $$ = new VarDecl($2->lexeme, std::unique_ptr<TypeName>($4));
+        $$ = new AST::VarDecl($2, $4, nullptr);
+        free($2); free($4);
       }
-    | VAR IDENTIFIER COLON type ASSIGN expr SEMI
+    | VAR IDENTIFIER COLON TYPE_NAME ASSIGN expr SEMICOLON
       {
-        $$ = new VarDecl($2->lexeme, std::unique_ptr<TypeName>($4), std::unique_ptr<Expr>($6));
+        $$ = new AST::VarDecl($2, $4, $6);
+        free($2); free($4);
       }
     ;
 
-type
-    : INT_TYPE                       { $$ = new TypeName("Int"); }
-    | IDENTIFIER                     { $$ = new TypeName($1->lexeme); }
-    ;
+/* ===== expressions ===== */
 
-/* Выражения: раскладываем a+b+10 и т.п. в бинарные узлы */
 expr
-    : expr PLUS term                 { $$ = new BinExpr('+', std::unique_ptr<Expr>($1), std::unique_ptr<Expr>($3)); }
-    | expr MINUS term                { $$ = new BinExpr('-', std::unique_ptr<Expr>($1), std::unique_ptr<Expr>($3)); }
-    | term                           { $$ = $1; }
+    : additive_expr { $$ = $1; }
     ;
 
-term
-    : term STAR factor               { $$ = new BinExpr('*', std::unique_ptr<Expr>($1), std::unique_ptr<Expr>($3)); }
-    | term SLASH factor              { $$ = new BinExpr('/', std::unique_ptr<Expr>($1), std::unique_ptr<Expr>($3)); }
-    | factor                         { $$ = $1; }
+additive_expr
+    : additive_expr PLUS multiplicative_expr
+      { $$ = new AST::Binary(AST::BinOp::Add, $1, $3); }
+    | additive_expr MINUS multiplicative_expr
+      { $$ = new AST::Binary(AST::BinOp::Sub, $1, $3); }
+    | multiplicative_expr
+      { $$ = $1; }
     ;
 
-factor
-    : INTEGER                        { $$ = new IntLiteral(static_cast<IntegerToken*>($1)->value); }
-    | IDENTIFIER                     { $$ = new IdExpr($1->lexeme); }
-    | LPAREN expr RPAREN             { $$ = $2; }
+multiplicative_expr
+    : multiplicative_expr STAR unary_expr
+      { $$ = new AST::Binary(AST::BinOp::Mul, $1, $3); }
+    | multiplicative_expr SLASH unary_expr
+      { $$ = new AST::Binary(AST::BinOp::Div, $1, $3); }
+    | unary_expr
+      { $$ = $1; }
+    ;
+
+unary_expr
+    : MINUS unary_expr
+      { $$ = new AST::Unary(AST::Unary::Op::Neg, $2); }
+    | primary_expr
+      { $$ = $1; }
+    ;
+
+primary_expr
+    : INT_LITERAL
+      { $$ = new AST::IntLiteral($1); }
+    | IDENTIFIER
+      { $$ = new AST::Identifier($1); free($1); }
+    | LPAREN expr RPAREN
+      { $$ = $2; }
     ;
 
 %%
 
 void yyerror(const char* s) {
-    fprintf(stderr, "Parse error: %s\n", s);
+    std::fprintf(stderr, "Parse error at line %d: %s\n", yylineno, s);
 }

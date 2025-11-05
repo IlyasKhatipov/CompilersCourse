@@ -1,27 +1,32 @@
 // tokens.hpp
 #pragma once
 #include <string>
-#include <iostream>
+#include <vector>
 #include <memory>
+#include <iostream>
+#include <cstdint>
 
 enum class TokenKind {
-    Class, Is, Var, End,
-    Identifier, TypeName,
-    IntegerLiteral,
-    Colon, Semicolon, Assign,
-    LParen, RParen, Plus, Minus, Star, Slash,
-    Dot,
+    // Ключевые
+    CLASS, VAR, IS, END,
+    // Идентификаторы / типы / литералы
+    IDENTIFIER, TYPE_NAME, INT_LITERAL,
+    // Знаки
+    COLON, SEMICOLON, COMMA,
+    LPAREN, RPAREN, LBRACE, RBRACE,
+    ASSIGN, PLUS, MINUS, STAR, SLASH,
+    END_OF_FILE
 };
 
 struct Token {
-    TokenKind kind;
+    TokenKind   kind;
     std::string lexeme;
-    int line = 1;
-    int column = 1;
-    Token(TokenKind k, std::string lx, int ln=1, int col=1)
+    int         line;
+    int         column;
+
+    Token(TokenKind k, std::string lx, int ln, int col)
         : kind(k), lexeme(std::move(lx)), line(ln), column(col) {}
     virtual ~Token() = default;
-    virtual std::string info() const { return lexeme; }
 };
 
 struct KeywordToken : Token {
@@ -29,58 +34,64 @@ struct KeywordToken : Token {
         : Token(k, lx, ln, col) {}
 };
 
+struct IdentifierToken : Token {
+    IdentifierToken(const std::string& lx, int ln, int col)
+        : Token(TokenKind::IDENTIFIER, lx, ln, col) {}
+};
+
+struct TypeNameToken : Token {
+    TypeNameToken(const std::string& lx, int ln, int col)
+        : Token(TokenKind::TYPE_NAME, lx, ln, col) {}
+};
+
+struct IntegerToken : Token {
+    std::int64_t value;
+    IntegerToken(const std::string& lx, std::int64_t v, int ln, int col)
+        : Token(TokenKind::INT_LITERAL, lx, ln, col), value(v) {}
+};
+
 struct SymbolToken : Token {
     SymbolToken(TokenKind k, const std::string& lx, int ln, int col)
         : Token(k, lx, ln, col) {}
 };
 
-struct IdentifierToken : Token {
-    IdentifierToken(const std::string& name, int ln, int col)
-        : Token(TokenKind::Identifier, name, ln, col) {}
-};
-
-struct TypeToken : Token {
-    TypeToken(const std::string& name, int ln, int col)
-        : Token(TokenKind::TypeName, name, ln, col) {}
-};
-
-struct IntegerToken : Token {
-    long long value;
-    IntegerToken(long long v, const std::string& lx, int ln, int col)
-        : Token(TokenKind::IntegerLiteral, lx, ln, col), value(v) {}
-    std::string info() const override { return std::to_string(value); }
-};
-
-// Утилита для красивого имени токена
-inline const char* tokenKindName(TokenKind k) {
+inline const char* TokenKindToString(TokenKind k) {
     switch (k) {
-        case TokenKind::Class: return "CLASS";
-        case TokenKind::Is: return "IS";
-        case TokenKind::Var: return "VAR";
-        case TokenKind::End: return "END";
-        case TokenKind::Identifier: return "IDENTIFIER";
-        case TokenKind::TypeName: return "TYPE";
-        case TokenKind::IntegerLiteral: return "INTEGER";
-        case TokenKind::Colon: return "COLON";
-        case TokenKind::Semicolon: return "SEMICOLON";
-        case TokenKind::Assign: return "ASSIGN";
-        case TokenKind::LParen: return "LPAREN";
-        case TokenKind::RParen: return "RPAREN";
-        case TokenKind::Plus: return "PLUS";
-        case TokenKind::Minus: return "MINUS";
-        case TokenKind::Star: return "STAR";
-        case TokenKind::Slash: return "SLASH";
-        case TokenKind::Dot: return "DOT";
+        case TokenKind::CLASS: return "CLASS";
+        case TokenKind::VAR: return "VAR";
+        case TokenKind::IS: return "IS";
+        case TokenKind::END: return "END";
+        case TokenKind::IDENTIFIER: return "IDENTIFIER";
+        case TokenKind::TYPE_NAME: return "TYPE_NAME";
+        case TokenKind::INT_LITERAL: return "INT_LITERAL";
+        case TokenKind::COLON: return "COLON";
+        case TokenKind::SEMICOLON: return "SEMICOLON";
+        case TokenKind::COMMA: return "COMMA";
+        case TokenKind::LPAREN: return "LPAREN";
+        case TokenKind::RPAREN: return "RPAREN";
+        case TokenKind::LBRACE: return "LBRACE";
+        case TokenKind::RBRACE: return "RBRACE";
+        case TokenKind::ASSIGN: return "ASSIGN";
+        case TokenKind::PLUS: return "PLUS";
+        case TokenKind::MINUS: return "MINUS";
+        case TokenKind::STAR: return "STAR";
+        case TokenKind::SLASH: return "SLASH";
+        case TokenKind::END_OF_FILE: return "EOF";
     }
     return "UNKNOWN";
 }
 
-// Печать «следа» токенов из лексера
-inline void printToken(const Token* t) {
-    std::cout << tokenKindName(t->kind);
-    if (t->kind == TokenKind::Identifier || t->kind == TokenKind::TypeName)
+// Хранилище всех токенов для отладки (inline, чтобы не требовать .cpp)
+inline std::vector<std::unique_ptr<Token>> g_tokens;
+
+inline void EmitToken(std::unique_ptr<Token> t) {
+    std::cout << TokenKindToString(t->kind);
+    if (t->kind == TokenKind::IDENTIFIER || t->kind == TokenKind::TYPE_NAME) {
         std::cout << "(" << t->lexeme << ")";
-    else if (t->kind == TokenKind::IntegerLiteral)
-        std::cout << "(" << static_cast<const IntegerToken*>(t)->value << ")";
+    } else if (t->kind == TokenKind::INT_LITERAL) {
+        auto* it = static_cast<IntegerToken*>(t.get());
+        std::cout << "(" << it->value << ")";
+    }
     std::cout << "\n";
+    g_tokens.emplace_back(std::move(t));
 }

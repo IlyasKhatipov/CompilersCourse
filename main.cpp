@@ -1,45 +1,38 @@
 // main.cpp
 #include <cstdio>
-#include <cstdlib>
 #include <iostream>
 #include "ast.hpp"
+#include "tokens.hpp"
 
-extern int yyparse(void);
+extern int  yyparse(void);
 extern FILE* yyin;
 extern AST::Program* g_program;
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::cerr << "Usage: ./mycompiler <input .o>\n";
+        std::cerr << "Usage: " << argv[0] << " <source .o>\n";
         return 1;
     }
-    const char* path = argv[1];
-    yyin = fopen(path, "r");
+    yyin = std::fopen(argv[1], "r");
     if (!yyin) {
         std::perror("fopen");
         return 1;
     }
 
-    // Парсим; лексер уже печатает поток токенов:
-    // например:
-    // CLASS
-    // IDENTIFIER(Point)
-    // IS
-    // VAR
-    // IDENTIFIER(x)
-    // COLON
-    // TYPE(Int)
-    // ...
-    if (yyparse() == 0) {
-        // Печать нормализованного AST (раскладывание)
-        if (g_program) {
-            std::cout << "\n--- AST ---\n";
-            g_program->printNormalized(std::cout);
-        }
-    } else {
-        std::cerr << "Parsing failed.\n";
-    }
+    std::cout << "=== LEXER TOKENS ===\n";
+    int rc = yyparse();
+    std::fclose(yyin);
 
-    fclose(yyin);
-    return 0;
+    if (rc == 0) {
+        std::cout << "\n=== AST ===\n";
+        if (g_program) {
+            g_program->print(std::cout);
+            delete g_program;
+            g_program = nullptr;
+        }
+        return 0;
+    } else {
+        std::cerr << "Parse failed.\n";
+        return 2;
+    }
 }

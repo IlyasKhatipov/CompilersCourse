@@ -1,71 +1,124 @@
 // ast.hpp
 #pragma once
-#include <memory>
 #include <string>
 #include <vector>
 #include <iostream>
+#include <cstdint>
 
 namespace AST {
 
-struct Node { virtual ~Node() = default; };
-
-struct TypeName : Node {
-    std::string name;
-    explicit TypeName(std::string n) : name(std::move(n)) {}
+struct Node {
+    virtual ~Node() = default;
+    virtual void print(std::ostream& os, int indent = 0) const = 0;
 };
 
-struct Expr : Node { virtual void print(std::ostream& os) const = 0; };
+inline void doIndent(std::ostream& os, int n) {
+    for (int i = 0; i < n; ++i) os << "  ";
+}
+
+// ==== Expressions ====
+
+struct Expr : Node { };
 
 struct IntLiteral : Expr {
-    long long value;
-    explicit IntLiteral(long long v) : value(v) {}
-    void print(std::ostream& os) const override { os << value; }
-};
-
-struct IdExpr : Expr {
-    std::string name;
-    explicit IdExpr(std::string n) : name(std::move(n)) {}
-    void print(std::ostream& os) const override { os << name; }
-};
-
-struct BinExpr : Expr {
-    char op;
-    std::unique_ptr<Expr> lhs, rhs;
-    BinExpr(char op, std::unique_ptr<Expr> l, std::unique_ptr<Expr> r)
-        : op(op), lhs(std::move(l)), rhs(std::move(r)) {}
-    void print(std::ostream& os) const override {
-        lhs->print(os); os << " " << op << " "; rhs->print(os);
+    std::int64_t value;
+    explicit IntLiteral(std::int64_t v) : value(v) {}
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "Int(" << value << ")\n";
     }
 };
 
+struct Identifier : Expr {
+    std::string name;
+    explicit Identifier(std::string n) : name(std::move(n)) {}
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "Id(" << name << ")\n";
+    }
+};
+
+enum class BinOp { Add, Sub, Mul, Div, Assign };
+
+struct Binary : Expr {
+    BinOp op;
+    Expr* lhs;
+    Expr* rhs;
+    Binary(BinOp o, Expr* l, Expr* r) : op(o), lhs(l), rhs(r) {}
+    ~Binary() { delete lhs; delete rhs; }
+
+    static const char* opToStr(BinOp o) {
+        switch (o) {
+            case BinOp::Add: return "+";
+            case BinOp::Sub: return "-";
+            case BinOp::Mul: return "*";
+            case BinOp::Div: return "/";
+            case BinOp::Assign: return "=";
+        }
+        return "?";
+    }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "BinOp(" << opToStr(op) << ")\n";
+        lhs->print(os, indent + 1);
+        rhs->print(os, indent + 1);
+    }
+};
+
+struct Unary : Expr {
+    enum class Op { Neg };
+    Op op;
+    Expr* rhs;
+    Unary(Op o, Expr* e) : op(o), rhs(e) {}
+    ~Unary() { delete rhs; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "Unary(-)\n";
+        rhs->print(os, indent + 1);
+    }
+};
+
+// ==== Declarations / Program ====
+
 struct VarDecl : Node {
     std::string name;
-    std::unique_ptr<TypeName> type;
-    std::unique_ptr<Expr> init; // опционально
-    VarDecl(std::string n, std::unique_ptr<TypeName> t, std::unique_ptr<Expr> i = {})
-        : name(std::move(n)), type(std::move(t)), init(std::move(i)) {}
+    std::string typeName;
+    Expr* init; // может быть nullptr
+
+    VarDecl(std::string n, std::string t, Expr* i)
+        : name(std::move(n)), typeName(std::move(t)), init(i) {}
+    ~VarDecl() { delete init; }
+
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "var " << name << " : " << typeName;
+        if (init) {
+            os << " =\n";
+            init->print(os, indent + 1);
+        } else {
+            os << "\n";
+        }
+    }
 };
 
 struct ClassDecl : Node {
     std::string name;
-    std::vector<std::unique_ptr<VarDecl>> fields;
+    std::vector<VarDecl*> fields;
+
     explicit ClassDecl(std::string n) : name(std::move(n)) {}
+    ~ClassDecl() { for (auto* v : fields) delete v; }
+
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "Class: " << name << "\n";
+        for (auto* v : fields) v->print(os, indent + 1);
+    }
 };
 
 struct Program : Node {
-    std::vector<std::unique_ptr<ClassDecl>> classes;
-    void printNormalized(std::ostream& os) const {
-        for (auto& c : classes) {
-            os << "Class: " << c->name << "\n";
-            for (auto& v : c->fields) {
-                os << "var " << v->name << " : " << v->type->name;
-                if (v->init) {
-                    os << " = ";
-                    v->init->print(os);
-                }
-                os << "\n";
-            }
-        }
+    std::vector<ClassDecl*> classes;
+    ~Program() { for (auto* c : classes) delete c; }
+
+    void print(std::ostream& os, int indent = 0) const override {
+        for (auto* c : classes) c->print(os, indent);
     }
 };
 
