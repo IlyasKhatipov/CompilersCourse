@@ -25,6 +25,14 @@ struct IntLiteral : Expr {
     }
 };
 
+struct StringLiteral : Expr {
+    std::string value;
+    explicit StringLiteral(std::string v) : value(std::move(v)) {}
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "String(" << value << ")\n";
+    }
+};
+
 struct BoolLiteral : Expr {
     bool value;
     explicit BoolLiteral(bool v) : value(v) {}
@@ -41,7 +49,7 @@ struct Identifier : Expr {
     }
 };
 
-enum class BinOp { Add, Sub, Mul, Div, Assign };
+enum class BinOp { Add, Sub, Mul, Div, Assign, Gt };
 
 struct Binary : Expr {
     BinOp op;
@@ -55,7 +63,8 @@ struct Binary : Expr {
             case BinOp::Sub: return "-";
             case BinOp::Mul: return "*";
             case BinOp::Div: return "/";
-            case BinOp::Assign: return "=";
+            case BinOp::Assign: return ":=";
+            case BinOp::Gt: return ">";
         }
         return "?";
     }
@@ -80,7 +89,41 @@ struct Unary : Expr {
     }
 };
 
+struct MemberAccess : Expr {
+    Expr* object;
+    std::string member;
+    MemberAccess(Expr* o, std::string m) : object(o), member(std::move(m)) {}
+    ~MemberAccess() { delete object; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "Member\n";
+        object->print(os, indent + 1);
+        doIndent(os, indent + 1); os << member << "\n";
+    }
+};
+
+struct Call : Expr {
+    Expr* callee;
+    std::vector<Expr*> args;
+    explicit Call(Expr* c) : callee(c) {}
+    ~Call() { delete callee; for (auto* a : args) delete a; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "Call\n";
+        callee->print(os, indent + 1);
+        for (auto* a : args) a->print(os, indent + 1);
+    }
+};
+
 struct Stmt : Node { };
+
+struct ExprStmt : Stmt {
+    Expr* expr;
+    explicit ExprStmt(Expr* e) : expr(e) {}
+    ~ExprStmt() { delete expr; }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent); os << "expr\n";
+        expr->print(os, indent + 1);
+    }
+};
 
 struct ReturnStmt : Stmt {
     Expr* value;
@@ -108,12 +151,19 @@ struct IfStmt : Stmt {
     }
 };
 
+struct Block : Stmt {
+    std::vector<Stmt*> stmts;
+    ~Block() { for (auto* s : stmts) delete s; }
+    void print(std::ostream& os, int indent) const override {
+        for (auto* s : stmts) s->print(os, indent);
+    }
+};
+
 struct VarDecl : Node {
     std::string name;
     std::string typeName;
     Expr* init;
-    VarDecl(std::string n, std::string t, Expr* i)
-        : name(std::move(n)), typeName(std::move(t)), init(i) {}
+    VarDecl(std::string n, std::string t, Expr* i) : name(std::move(n)), typeName(std::move(t)), init(i) {}
     ~VarDecl() { delete init; }
     void print(std::ostream& os, int indent) const override {
         doIndent(os, indent);
@@ -124,6 +174,15 @@ struct VarDecl : Node {
         } else {
             os << "\n";
         }
+    }
+};
+
+struct VarDeclStmt : Stmt {
+    VarDecl* decl;
+    explicit VarDeclStmt(VarDecl* d) : decl(d) {}
+    ~VarDeclStmt() { delete decl; }
+    void print(std::ostream& os, int indent) const override {
+        decl->print(os, indent);
     }
 };
 
@@ -138,8 +197,7 @@ struct MethodDecl : Node {
     std::vector<Param*> params;
     std::string returnType;
     Stmt* body;
-    MethodDecl(std::string n, std::string rt, Stmt* b)
-        : name(std::move(n)), returnType(std::move(rt)), body(b) {}
+    MethodDecl(std::string n, std::string rt, Stmt* b) : name(std::move(n)), returnType(std::move(rt)), body(b) {}
     ~MethodDecl() { for (auto* p : params) delete p; delete body; }
     void print(std::ostream& os, int indent) const override {
         doIndent(os, indent);

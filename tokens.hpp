@@ -9,18 +9,19 @@ enum class TokenKind {
     CLASS, VAR, IS, END,
     METHOD, RETURN, IF, THEN, ELSE,
     TRUEKW, FALSEKW,
-    IDENTIFIER, TYPE_NAME, INT_LITERAL,
+    IDENTIFIER, TYPE_NAME, INT_LITERAL, STRING_LITERAL,
     COLON, SEMICOLON, COMMA,
     LPAREN, RPAREN, LBRACE, RBRACE,
     ASSIGN, ARROW, PLUS, MINUS, STAR, SLASH,
+    DOT, GT, EQUAL,
     END_OF_FILE
 };
 
 struct Token {
-    TokenKind   kind;
+    TokenKind kind;
     std::string lexeme;
-    int         line;
-    int         column;
+    int line;
+    int column;
     Token(TokenKind k, std::string lx, int ln, int col)
         : kind(k), lexeme(std::move(lx)), line(ln), column(col) {}
     virtual ~Token() = default;
@@ -47,6 +48,12 @@ struct IntegerToken : Token {
         : Token(TokenKind::INT_LITERAL, lx, ln, col), value(v) {}
 };
 
+struct StringToken : Token {
+    std::string value;
+    StringToken(const std::string& lx, std::string v, int ln, int col)
+        : Token(TokenKind::STRING_LITERAL, lx, ln, col), value(std::move(v)) {}
+};
+
 struct SymbolToken : Token {
     SymbolToken(TokenKind k, const std::string& lx, int ln, int col)
         : Token(k, lx, ln, col) {}
@@ -68,6 +75,7 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::IDENTIFIER: return "IDENTIFIER";
         case TokenKind::TYPE_NAME: return "TYPE_NAME";
         case TokenKind::INT_LITERAL: return "INT_LITERAL";
+        case TokenKind::STRING_LITERAL: return "STRING_LITERAL";
         case TokenKind::COLON: return "COLON";
         case TokenKind::SEMICOLON: return "SEMICOLON";
         case TokenKind::COMMA: return "COMMA";
@@ -81,6 +89,9 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::MINUS: return "MINUS";
         case TokenKind::STAR: return "STAR";
         case TokenKind::SLASH: return "SLASH";
+        case TokenKind::DOT: return "DOT";
+        case TokenKind::GT: return "GT";
+        case TokenKind::EQUAL: return "EQUAL";
         case TokenKind::END_OF_FILE: return "EOF";
     }
     return "UNKNOWN";
@@ -95,6 +106,8 @@ inline void EmitToken(std::unique_ptr<Token> t) {
     } else if (t->kind == TokenKind::INT_LITERAL) {
         auto* it = static_cast<IntegerToken*>(t.get());
         std::cout << "(" << it->value << ")";
+    } else if (t->kind == TokenKind::STRING_LITERAL) {
+        std::cout << "(" << t->lexeme << ")";
     }
     std::cout << "\n";
     g_tokens.emplace_back(std::move(t));

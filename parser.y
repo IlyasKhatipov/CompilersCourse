@@ -25,6 +25,7 @@ AST::Program* g_program = nullptr;
     struct Stmt;
     struct MethodDecl;
     struct Param;
+    struct Block;
   }
 }
 
@@ -32,20 +33,22 @@ AST::Program* g_program = nullptr;
 %define parse.error verbose
 
 %union {
-    long long                      ival;
-    char*                          cstr;
-    AST::Program*                  program;
-    AST::ClassDecl*                classdecl;
-    AST::VarDecl*                  vardecl;
-    AST::Expr*                     expr;
-    AST::Stmt*                     stmt;
-    AST::MethodDecl*               methoddecl;
-    AST::Param*                    param;
-    AST::Node*                     node;
-    std::vector<AST::ClassDecl*>*  classlist;
-    std::vector<AST::Node*>*       memberlist;
-    std::vector<AST::VarDecl*>*    varlist;
-    std::vector<AST::Param*>*      paramlist;
+    long long                        ival;
+    char*                            cstr;
+    AST::Program*                    program;
+    AST::ClassDecl*                  classdecl;
+    AST::VarDecl*                    vardecl;
+    AST::Expr*                       expr;
+    AST::Stmt*                       stmt;
+    AST::MethodDecl*                 methoddecl;
+    AST::Param*                      param;
+    AST::Node*                       node;
+    std::vector<AST::ClassDecl*>*    classlist;
+    std::vector<AST::Node*>*         memberlist;
+    std::vector<AST::VarDecl*>*      varlist;
+    std::vector<AST::Param*>*        paramlist;
+    std::vector<AST::Stmt*>*         stmtlist;
+    std::vector<AST::Expr*>*         exprlist;
 }
 
 %token CLASS VAR IS END
@@ -54,9 +57,11 @@ AST::Program* g_program = nullptr;
 %token COLON SEMICOLON COMMA
 %token LPAREN RPAREN LBRACE RBRACE
 %token ASSIGN ARROW PLUS MINUS STAR SLASH
+%token DOT GT EQUAL
 %token <cstr> IDENTIFIER
 %token <cstr> TYPE_NAME
 %token <ival> INT_LITERAL
+%token <cstr> STRING_LITERAL
 
 %type  <program>   program
 %type  <classlist> class_list
@@ -67,8 +72,10 @@ AST::Program* g_program = nullptr;
 %type  <methoddecl> method_decl
 %type  <paramlist> opt_params param_list
 %type  <param>     param
-%type  <stmt>      method_body stmt if_stmt
-%type  <expr>      expr additive_expr multiplicative_expr unary_expr primary_expr
+%type  <stmt>      method_body stmt simple_stmt if_stmt
+%type  <stmtlist>  stmt_list
+%type  <expr>      expr assign_expr relational_expr additive_expr multiplicative_expr unary_expr postfix_expr primary_expr lvalue
+%type  <exprlist>  arg_list opt_args
 
 %%
 
@@ -125,6 +132,11 @@ var_decl
         $$ = new AST::VarDecl($2, $4, nullptr);
         free($2); free($4);
       }
+    | VAR IDENTIFIER COLON TYPE_NAME EQUAL expr SEMICOLON
+      {
+        $$ = new AST::VarDecl($2, $4, $6);
+        free($2); free($4);
+      }
     | VAR IDENTIFIER COLON TYPE_NAME ASSIGN expr SEMICOLON
       {
         $$ = new AST::VarDecl($2, $4, $6);
@@ -162,26 +174,80 @@ param
     ;
 
 method_body
-    : expr
-      { $$ = new AST::ReturnStmt($1); }
-    | stmt
-      { $$ = $1; }
+    : stmt_list
+      {
+        auto* b = new AST::Block();
+        for (auto* s : *$1) b->stmts.push_back(s);
+        delete $1;
+        $$ = b;
+      }
+    ;
+
+stmt_list
+    : stmt_list simple_stmt SEMICOLON
+      { $$ = $1; $1->push_back($2); }
+    | stmt_list if_stmt
+      { $$ = $1; $1->push_back($2); }
+    | simple_stmt SEMICOLON
+      { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
+    | if_stmt
+      { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
+    | simple_stmt
+      { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
     ;
 
 stmt
-    : RETURN expr
-      { $$ = new AST::ReturnStmt($2); }
+    : simple_stmt
+      { $$ = $1; }
     | if_stmt
       { $$ = $1; }
     ;
 
+simple_stmt
+    : RETURN expr
+      { $$ = new AST::ReturnStmt($2); }
+    | VAR IDENTIFIER COLON TYPE_NAME
+      {
+        $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, nullptr));
+        free($2); free($4);
+      }
+    | VAR IDENTIFIER COLON TYPE_NAME EQUAL expr
+      {
+        $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6));
+        free($2); free($4);
+      }
+    | VAR IDENTIFIER COLON TYPE_NAME ASSIGN expr
+      {
+        $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6));
+        free($2); free($4);
+      }
+    | lvalue ASSIGN expr
+      { $$ = new AST::ExprStmt(new AST::Binary(AST::BinOp::Assign, $1, $3)); }
+    | expr
+      { $$ = new AST::ExprStmt($1); }
+    ;
+
 if_stmt
-    : IF expr THEN stmt ELSE stmt
+    : IF expr THEN stmt ELSE stmt END
       { $$ = new AST::IfStmt($2, $4, $6); }
     ;
 
 expr
-    : additive_expr { $$ = $1; }
+    : assign_expr { $$ = $1; }
+    ;
+
+assign_expr
+    : lvalue ASSIGN assign_expr
+      { $$ = new AST::Binary(AST::BinOp::Assign, $1, $3); }
+    | relational_expr
+      { $$ = $1; }
+    ;
+
+relational_expr
+    : relational_expr GT additive_expr
+      { $$ = new AST::Binary(AST::BinOp::Gt, $1, $3); }
+    | additive_expr
+      { $$ = $1; }
     ;
 
 additive_expr
@@ -205,13 +271,41 @@ multiplicative_expr
 unary_expr
     : MINUS unary_expr
       { $$ = new AST::Unary(AST::Unary::Op::Neg, $2); }
+    | postfix_expr
+      { $$ = $1; }
+    ;
+
+postfix_expr
+    : postfix_expr LPAREN opt_args RPAREN
+      {
+        auto* call = new AST::Call($1);
+        for (auto* e : *$3) call->args.push_back(e);
+        delete $3;
+        $$ = call;
+      }
+    | postfix_expr DOT IDENTIFIER
+      { $$ = new AST::MemberAccess($1, $3); free($3); }
     | primary_expr
       { $$ = $1; }
+    ;
+
+opt_args
+    : arg_list { $$ = $1; }
+    | { $$ = new std::vector<AST::Expr*>(); }
+    ;
+
+arg_list
+    : arg_list COMMA expr
+      { $$ = $1; $1->push_back($3); }
+    | expr
+      { $$ = new std::vector<AST::Expr*>(); $$->push_back($1); }
     ;
 
 primary_expr
     : INT_LITERAL
       { $$ = new AST::IntLiteral($1); }
+    | STRING_LITERAL
+      { $$ = new AST::StringLiteral($1); free($1); }
     | TRUE
       { $$ = new AST::BoolLiteral(true); }
     | FALSE
@@ -220,6 +314,13 @@ primary_expr
       { $$ = new AST::Identifier($1); free($1); }
     | LPAREN expr RPAREN
       { $$ = $2; }
+    ;
+
+lvalue
+    : IDENTIFIER
+      { $$ = new AST::Identifier($1); free($1); }
+    | lvalue DOT IDENTIFIER
+      { $$ = new AST::MemberAccess($1, $3); free($3); }
     ;
 
 %%
