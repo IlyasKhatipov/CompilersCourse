@@ -1,20 +1,17 @@
-class Animal {
-  virtual void speak() {
-    output("...");
-  }
-}
+class Animal is
+  method speak() : Void =>
+    output("...")
+end
 
-class Dog : Animal {
-  override void speak() {
-    output("woof");
-  }
-}
+class Dog is
+  method speak() : Void =>
+    output("woof")
+end
 
-class Main {
-  void main() {
-    Animal a;
-    Dog d;
-    a = d;       // полиморфизм
-    a.speak();   // должен вызвать Dog.speak()
-  }
-}
+class Main is
+  var a : Animal;
+  var d : Dog;
+  method main() : Void =>
+    a := d;       # полиморфизм
+    a.speak()     # должен вызвать Dog.speak()
+end

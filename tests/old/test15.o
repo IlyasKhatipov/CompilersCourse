@@ -1,20 +1,15 @@
-class A {
-  int get() {
-    return 42;
-  }
-}
+class A is
+  method get() : Int => 42
+end
 
-class B {
-  A obj;
+class B is
+  var obj : A;
+  method print() : Void =>
+    output(obj.get())
+end
 
-  void print() {
-    output(obj.get());
-  }
-}
-
-class Main {
-  void main() {
-    B b;
-    b.print();
-  }
-}
+class Main is
+  var b : B;
+  method main() : Void =>
+    b.print()
+end

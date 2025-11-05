@@ -1,9 +1,9 @@
-class Main {
-  void main() {
-    int[3] arr;
-    arr[0] = 10;
-    arr[1] = 20;
-    arr[2] = 30;
-    output(arr[1]);
-  }
-}
+class Main is
+  var arr : Array<Int>;
+  method main() : Void =>
+    arr := Array<Int>(3);
+    arr[0] := 10;
+    arr[1] := 20;
+    arr[2] := 30;
+    output(arr[1])
+end
