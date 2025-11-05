@@ -12,6 +12,6 @@ class Main is
   var a : Animal;
   var d : Dog;
   method main() : Void =>
-    a := d;       # полиморфизм
-    a.speak()     # должен вызвать Dog.speak()
+    a := d;
+    a.speak()
 end

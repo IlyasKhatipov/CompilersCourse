@@ -8,12 +8,13 @@
 enum class TokenKind {
     CLASS, VAR, IS, END,
     METHOD, RETURN, IF, THEN, ELSE,
+    WHILE, DO,
     TRUEKW, FALSEKW,
     IDENTIFIER, TYPE_NAME, INT_LITERAL, STRING_LITERAL,
     COLON, SEMICOLON, COMMA,
-    LPAREN, RPAREN, LBRACE, RBRACE,
+    LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
     ASSIGN, ARROW, PLUS, MINUS, STAR, SLASH,
-    DOT, GT, EQUAL,
+    DOT, GT, LT, EQEQ, EQUAL,
     END_OF_FILE
 };
 
@@ -70,6 +71,8 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::IF: return "IF";
         case TokenKind::THEN: return "THEN";
         case TokenKind::ELSE: return "ELSE";
+        case TokenKind::WHILE: return "WHILE";
+        case TokenKind::DO: return "DO";
         case TokenKind::TRUEKW: return "TRUE";
         case TokenKind::FALSEKW: return "FALSE";
         case TokenKind::IDENTIFIER: return "IDENTIFIER";
@@ -83,6 +86,8 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::RPAREN: return "RPAREN";
         case TokenKind::LBRACE: return "LBRACE";
         case TokenKind::RBRACE: return "RBRACE";
+        case TokenKind::LBRACKET: return "LBRACKET";
+        case TokenKind::RBRACKET: return "RBRACKET";
         case TokenKind::ASSIGN: return "ASSIGN";
         case TokenKind::ARROW: return "ARROW";
         case TokenKind::PLUS: return "PLUS";
@@ -91,6 +96,8 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::SLASH: return "SLASH";
         case TokenKind::DOT: return "DOT";
         case TokenKind::GT: return "GT";
+        case TokenKind::LT: return "LT";
+        case TokenKind::EQEQ: return "EQEQ";
         case TokenKind::EQUAL: return "EQUAL";
         case TokenKind::END_OF_FILE: return "EOF";
     }
