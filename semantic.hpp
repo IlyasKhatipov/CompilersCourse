@@ -5,10 +5,14 @@
 #include "ast.hpp"
 
 struct SemanticResult {
-    bool ok;
+    bool ok = true;
     std::vector<std::string> errors;
-    void addError(const std::string& s) { errors.push_back(s); ok = false; }
-    SemanticResult() : ok(true) {}
+    std::vector<std::string> warnings;       
+    std::vector<std::string> optimizations;  
+
+    void addError(const std::string& msg) { ok = false; errors.push_back(msg); }
+    void addWarning(const std::string& msg) { warnings.push_back(msg); }        
+    void addOptimization(const std::string& msg) { optimizations.push_back(msg); } 
 };
 
 class SemanticAnalyzer {
