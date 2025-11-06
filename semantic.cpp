@@ -14,6 +14,7 @@ SemanticAnalyzer::SemanticAnalyzer() {
     curClass = nullptr;
     curMethod = nullptr;
     localsStack.clear();
+    usedStack.clear();
 }
 
 // Build class index
@@ -56,20 +57,43 @@ void SemanticAnalyzer::analyzeMethod(AST::MethodDecl* m) {
     } else {
         result.addError("Method " + m->name + " has empty body");
     }
+
+    // === Remove unused locals declared in this scope ===
+    // localsStack.back() contains declarations for this top scope
+    // usedStack.back() contains usage flags
+    if (!localsStack.empty() && !usedStack.empty()) {
+        // Before physically removing, we add warnings for unused variables.
+        for (auto& kv : localsStack.back()) {
+            const std::string& name = kv.first;
+            bool used = true;
+            auto itu = usedStack.back().find(name);
+            if (itu == usedStack.back().end()) used = false;
+            else used = itu->second;
+            if (!used) {
+                result.addWarning("Variable '" + name + "' declared but never used in method '" + m->name + "'");
+            }
+        }
+        // Now remove unused var declarations from the method body AST
+        removeUnusedVarsInBlock(dynamic_cast<AST::Block*>(m->body), localsStack.back(), usedStack.back());
+    }
+
     popScope();
     curMethod = nullptr;
 }
 
 void SemanticAnalyzer::pushScope() {
     localsStack.emplace_back();
+    usedStack.emplace_back();
 }
 void SemanticAnalyzer::popScope() {
     if (!localsStack.empty()) localsStack.pop_back();
+    if (!usedStack.empty()) usedStack.pop_back();
 }
 
 void SemanticAnalyzer::declareLocal(const std::string& name, const std::string& type) {
     if (localsStack.empty()) pushScope();
     localsStack.back()[name] = type;
+    usedStack.back()[name] = false;
 }
 
 std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
@@ -78,10 +102,13 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
     if (auto* sl = dynamic_cast<AST::StringLiteral*>(e)) return std::string("String");
     if (auto* bl = dynamic_cast<AST::BoolLiteral*>(e)) return std::string("Bool");
     if (auto* id = dynamic_cast<AST::Identifier*>(e)) {
-        // lookup locals stack from top
-        for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-            auto found = it->find(id->name);
-            if (found != it->end()) return found->second;
+        // mark as used in the innermost scope where it's declared
+        for (int i = (int)localsStack.size() - 1; i >= 0; --i) {
+            auto found = localsStack[i].find(id->name);
+            if (found != localsStack[i].end()) {
+                usedStack[i][id->name] = true;
+                return found->second;
+            }
         }
         // not found — maybe it's a type-as-expr stored as Identifier node, but in general we warn
         result.addError("Use of undeclared identifier '" + id->name + "'");
@@ -114,9 +141,13 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
                 if (auto* lid = dynamic_cast<AST::Identifier*>(bin->lhs)) {
                     // find declared type
                     std::string lhs_type;
-                    for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                        auto found = it->find(lid->name);
-                        if (found != it->end()) { lhs_type = found->second; break; }
+                    for (int i = (int)localsStack.size() - 1; i >= 0; --i) {
+                        auto found = localsStack[i].find(lid->name);
+                        if (found != localsStack[i].end()) { lhs_type = found->second; 
+                            // mark as used (assignment counts as use)
+                            usedStack[i][lid->name] = true;
+                            break;
+                        }
                     }
                     if (lhs_type.empty()) {
                         result.addError("Assignment to undeclared variable '" + lid->name + "'");
@@ -145,6 +176,7 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
     if (auto* call = dynamic_cast<AST::Call*>(e)) {
         // if callee is identifier, check method existence in current class
         if (auto* id = dynamic_cast<AST::Identifier*>(call->callee)) {
+            // calling method name itself is not a local var usage, but could be considered usage of method name; we don't track that here
             auto it = classes.find(curClass->name);
             if (it != classes.end()) {
                 bool found = false;
@@ -156,8 +188,11 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
                 }
             }
             // we don't know return type, return empty
+            // still, check arguments
+            for (auto* a : call->args) typeOfExpr(a);
             return "";
         }
+        // complex callee
         return "";
     }
     if (auto* ma = dynamic_cast<AST::MemberAccess*>(e)) {
@@ -165,9 +200,13 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
         if (auto* objid = dynamic_cast<AST::Identifier*>(ma->object)) {
             // find name in locals -> type is class name?
             std::string t;
-            for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                auto found = it->find(objid->name);
-                if (found != it->end()) { t = found->second; break; }
+            for (int i = (int)localsStack.size() - 1; i >= 0; --i) {
+                auto found = localsStack[i].find(objid->name);
+                if (found != localsStack[i].end()) { t = found->second; 
+                    // mark object as used
+                    usedStack[i][objid->name] = true;
+                    break;
+                }
             }
             if (t.empty()) {
                 result.addError("Unknown object '" + objid->name + "' for member access");
@@ -273,8 +312,12 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
             if (auto* lid = dynamic_cast<AST::Identifier*>(bin->lhs)) {
                 // must be declared
                 bool found = false;
-                for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                    if (it->find(lid->name) != it->end()) { found = true; break; }
+                for (int i = (int)localsStack.size() - 1; i >= 0; --i) {
+                    if (localsStack[i].find(lid->name) != localsStack[i].end()) { 
+                        found = true;
+                        usedStack[i][lid->name] = true; // assignment considered use
+                        break; 
+                    }
                 }
                 if (!found) result.addError("Assignment to undeclared variable '" + lid->name + "'");
             }
@@ -308,10 +351,11 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
         return;
     }
     if (auto* id = dynamic_cast<AST::Identifier*>(e)) {
-        // identifier use check
+        // identifier use check: mark as used in the correct scope
         bool found = false;
-        for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-            if (it->find(id->name) != it->end()) { found = true; break; }
+        for (int i = (int)localsStack.size() - 1; i >= 0; --i) {
+            auto it = localsStack[i].find(id->name);
+            if (it != localsStack[i].end()) { usedStack[i][id->name] = true; found = true; break; }
         }
         if (!found) result.addError("Use of undeclared identifier '" + id->name + "'");
         return;
@@ -414,6 +458,7 @@ void SemanticAnalyzer::simplifyIf(AST::Stmt*& s) {
         if (auto* bl = dynamic_cast<AST::BoolLiteral*>(ifs->cond)) {
             if (bl->value) {
                 // replace s with thenS (which may be a Block or single stmt)
+                result.addOptimization("Removed unreachable 'else' branch (condition true)");
                 AST::Stmt* newstmt = nullptr;
                 // if thenS is a Block, keep it
                 if (auto* tb = dynamic_cast<AST::Block*>(ifs->thenS)) {
@@ -469,6 +514,59 @@ void SemanticAnalyzer::removeUnreachableInBlock(AST::Block* b) {
         newstmts.push_back(s);
         if (dynamic_cast<AST::ReturnStmt*>(s)) seenReturn = true;
         // if we simplified an if into block that contains return at end, this will handle later
+    }
+    b->stmts = std::move(newstmts);
+}
+
+// -------------------- Removal of unused variable declarations --------------------
+
+// remove unused variable declarations inside a statement (recursively)
+void SemanticAnalyzer::removeUnusedVarsInStmt(AST::Stmt*& s, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used) {
+    if (!s) return;
+    if (auto* blk = dynamic_cast<AST::Block*>(s)) {
+        removeUnusedVarsInBlock(blk, declared, used);
+        return;
+    }
+    if (auto* ifs = dynamic_cast<AST::IfStmt*>(s)) {
+        removeUnusedVarsInStmt(ifs->thenS, declared, used);
+        removeUnusedVarsInStmt(ifs->elseS, declared, used);
+        return;
+    }
+    if (auto* w = dynamic_cast<AST::WhileStmt*>(s)) {
+        if (w->body) removeUnusedVarsInBlock(dynamic_cast<AST::Block*>(w->body), declared, used);
+        return;
+    }
+    // other kinds: nothing to change
+}
+
+// walk a block and erase VarDeclStmt nodes for variables that are declared in 'declared' and marked unused in 'used'
+void SemanticAnalyzer::removeUnusedVarsInBlock(AST::Block* b, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used) {
+    if (!b) return;
+    std::vector<AST::Stmt*> newstmts;
+    newstmts.reserve(b->stmts.size());
+    for (auto* s : b->stmts) {
+        bool removed = false;
+        if (auto* vds = dynamic_cast<AST::VarDeclStmt*>(s)) {
+            if (vds->decl) {
+                const std::string& nm = vds->decl->name;
+                auto dit = declared.find(nm);
+                if (dit != declared.end()) {
+                    // variable declared in the scope we're checking
+                    auto uit = used.find(nm);
+                    bool isUsed = (uit != used.end() && uit->second);
+                    if (!isUsed) {
+                        // remove this declaration (don't add to newstmts)
+                        delete s; // free node
+                        removed = true;
+                    }
+                }
+            }
+        }
+        if (!removed) {
+            // recurse into nested statements/blocks to remove inner unused vars as well
+            removeUnusedVarsInStmt(s, declared, used);
+            newstmts.push_back(s);
+        }
     }
     b->stmts = std::move(newstmts);
 }

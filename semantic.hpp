@@ -31,6 +31,9 @@ private:
     // locals: name -> type
     std::vector<std::unordered_map<std::string,std::string>> localsStack;
 
+    // track usage of locals in corresponding scopes: name -> used?
+    std::vector<std::unordered_map<std::string,bool>> usedStack;
+
     SemanticResult result;
 
     // helpers
@@ -45,6 +48,10 @@ private:
     bool foldConstantsInExpr(AST::Expr*& e); // returns true if replaced/changed
     void simplifyIf(AST::Stmt*& s);
     void removeUnreachableInBlock(AST::Block* b);
+
+    // remove unused variables from a block (helper)
+    void removeUnusedVarsInStmt(AST::Stmt*& s, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used);
+    void removeUnusedVarsInBlock(AST::Block* b, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used);
 
     // types
     std::string typeOfExpr(AST::Expr* e);

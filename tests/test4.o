@@ -1,0 +1,6 @@
+class Main is
+  method Run() : Int =>
+    var x : Int = 10;
+    var y : Int = 5;
+    return y + 1
+end
