@@ -143,8 +143,11 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
         }
     }
     if (auto* call = dynamic_cast<AST::Call*>(e)) {
-        // if callee is identifier, check method existence in current class
         if (auto* id = dynamic_cast<AST::Identifier*>(call->callee)) {
+            if (id->name == "output" || id->name == "print") {
+                for (auto* a : call->args) typeOfExpr(a);
+                return "";
+            }
             auto it = classes.find(curClass->name);
             if (it != classes.end()) {
                 bool found = false;
@@ -155,11 +158,11 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
                     result.addError("Call to undeclared method '" + id->name + "' in class '" + curClass->name + "'");
                 }
             }
-            // we don't know return type, return empty
             return "";
         }
         return "";
     }
+
     if (auto* ma = dynamic_cast<AST::MemberAccess*>(e)) {
         // try to deduce member type if object has class and field exists (simple)
         if (auto* objid = dynamic_cast<AST::Identifier*>(ma->object)) {
@@ -285,10 +288,12 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
         analyzeExpr(un->rhs);
         return;
     }
-    if (auto* call = dynamic_cast<AST::Call*>(e)) {
-        // check callee
+        if (auto* call = dynamic_cast<AST::Call*>(e)) {
         if (auto* id = dynamic_cast<AST::Identifier*>(call->callee)) {
-            // check method exists in current class
+            if (id->name == "output" || id->name == "print") {
+                for (auto*& a : call->args) analyzeExpr(a);
+                return;
+            }
             bool found = false;
             for (auto* m : curClass->methods) if (m->name == id->name) { found = true; break; }
             if (!found) result.addError("Call to undeclared method '" + id->name + "'");
@@ -298,6 +303,7 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
         for (auto*& a : call->args) analyzeExpr(a);
         return;
     }
+
     if (auto* ma = dynamic_cast<AST::MemberAccess*>(e)) {
         analyzeExpr(ma->object);
         return;

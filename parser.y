@@ -67,8 +67,8 @@ AST::Program* g_program = nullptr;
 %type  <paramlist> opt_params param_list
 %type  <param>     param
 %type  <cstr>      type_spec type_list
-%type  <stmt>      method_body stmt simple_stmt if_stmt while_stmt
-%type  <stmtlist>  stmt_list
+%type  <stmt>      method_body stmt simple_stmt if_stmt while_stmt opt_else
+%type  <stmtlist>  stmt_list elseif_list
 %type  <expr>      expr assign_expr equality_expr relational_expr additive_expr multiplicative_expr unary_expr postfix_expr primary_expr lvalue type_as_expr
 %type  <exprlist>  arg_list opt_args
 
@@ -88,8 +88,13 @@ class_decl
     : CLASS IDENTIFIER IS class_body END
       {
         $$ = new AST::ClassDecl($2);
-        for (auto* n : *$4) { if (auto* v = dynamic_cast<AST::VarDecl*>(n)) $$->fields.push_back(v); else if (auto* m = dynamic_cast<AST::MethodDecl*>(n)) $$->methods.push_back(m); else delete n; }
-        free($2); delete $4;
+        for (auto* n : *$4) {
+          if (auto* v = dynamic_cast<AST::VarDecl*>(n)) $$->fields.push_back(v);
+          else if (auto* m = dynamic_cast<AST::MethodDecl*>(n)) $$->methods.push_back(m);
+          else delete n;
+        }
+        free($2);
+        delete $4;
       }
     ;
 
@@ -115,7 +120,8 @@ type_spec
       {
         std::string s = std::string($1) + "<" + std::string($3) + ">";
         $$ = strdup(s.c_str());
-        free($1); free($3);
+        free($1);
+        free($3);
       }
     ;
 
@@ -126,7 +132,8 @@ type_list
       {
         std::string s = std::string($1) + "," + std::string($3);
         $$ = strdup(s.c_str());
-        free($1); free($3);
+        free($1);
+        free($3);
       }
     ;
 
@@ -143,8 +150,12 @@ method_decl
     : METHOD IDENTIFIER LPAREN opt_params RPAREN COLON type_spec ARROW method_body
       {
         $$ = new AST::MethodDecl($2, $7, $9);
-        if ($4) { for (auto* p : *$4) $$->params.push_back(p); delete $4; }
-        free($2); free($7);
+        if ($4) {
+          for (auto* p : *$4) $$->params.push_back(p);
+          delete $4;
+        }
+        free($2);
+        free($7);
       }
     ;
 
@@ -198,8 +209,45 @@ simple_stmt
     ;
 
 if_stmt
-    : IF expr THEN stmt ELSE stmt END
-      { $$ = new AST::IfStmt($2, $4, $6); }
+    : IF expr THEN stmt END
+      {
+        $$ = new AST::IfStmt($2, $4, new AST::Block());
+      }
+    | IF expr THEN stmt ELSE stmt END
+      {
+        $$ = new AST::IfStmt($2, $4, $6);
+      }
+    | IF expr THEN stmt elseif_list opt_else END
+      {
+        AST::Stmt* tail = $6 ? $6 : static_cast<AST::Stmt*>(new AST::Block());
+        for (auto it = $5->rbegin(); it != $5->rend(); ++it) {
+          auto* ifs = dynamic_cast<AST::IfStmt*>(*it);
+          if (ifs) {
+            ifs->elseS = tail;
+            tail = ifs;
+          }
+        }
+        delete $5;
+        $$ = new AST::IfStmt($2, $4, tail);
+      }
+    ;
+
+opt_else
+    : ELSE stmt { $$ = $2; }
+    |          { $$ = nullptr; }
+    ;
+
+elseif_list
+    : elseif_list ELSE IF expr THEN stmt
+      {
+        $$ = $1;
+        $$->push_back(new AST::IfStmt($4, $6, new AST::Block()));
+      }
+    | ELSE IF expr THEN stmt
+      {
+        $$ = new std::vector<AST::Stmt*>();
+        $$->push_back(new AST::IfStmt($3, $5, new AST::Block()));
+      }
     ;
 
 while_stmt

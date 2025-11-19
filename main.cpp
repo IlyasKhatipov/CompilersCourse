@@ -2,7 +2,8 @@
 #include <iostream>
 #include "ast.hpp"
 #include "tokens.hpp"
-#include "semantic.hpp"   // добавлено
+#include "semantic.hpp"
+#include "interpreter.hpp"
 
 extern int yyparse(void);
 extern FILE* yyin;
@@ -34,7 +35,6 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    // === SEMANTIC ANALYSIS ===
     std::cout << "\n=== Semantic Analysis ===\n";
     SemanticAnalyzer analyzer;
     auto res = analyzer.analyze(g_program);
@@ -60,9 +60,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    // === PRINT FINAL AST ===
     std::cout << "\n=== Final AST (After Semantic Analysis) ===\n";
     g_program->print(std::cout);
+
+    std::cout << "\n=== Interpretation ===\n";
+    Interpreter interp(g_program);
+    interp.run();
+
     delete g_program;
     g_program = nullptr;
     return 0;
