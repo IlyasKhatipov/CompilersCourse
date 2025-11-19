@@ -7,7 +7,7 @@
 
 enum class TokenKind {
     CLASS, VAR, IS, END,
-    METHOD, RETURN, IF, THEN, ELSE,
+    METHOD, RETURN, IF, THEN, ELSE, ELSEIF,
     WHILE, DO,
     TRUEKW, FALSEKW,
     IDENTIFIER, TYPE_NAME, INT_LITERAL, STRING_LITERAL,
@@ -71,6 +71,7 @@ inline const char* TokenKindToString(TokenKind k) {
         case TokenKind::IF: return "IF";
         case TokenKind::THEN: return "THEN";
         case TokenKind::ELSE: return "ELSE";
+        case TokenKind::ELSEIF: return "ELSEIF";
         case TokenKind::WHILE: return "WHILE";
         case TokenKind::DO: return "DO";
         case TokenKind::TRUEKW: return "TRUE";

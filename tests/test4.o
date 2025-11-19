@@ -1,0 +1,11 @@
+class Main is
+  method main() : Int =>
+    if true then
+      output("then-part");
+      return 0;
+      output("unreachable");
+      output("still unreachable")
+    else
+      output("else-part")
+    end
+end

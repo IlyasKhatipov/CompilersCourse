@@ -72,34 +72,35 @@ extern int yydebug;
     IF = 264,                      /* IF  */
     THEN = 265,                    /* THEN  */
     ELSE = 266,                    /* ELSE  */
-    WHILE = 267,                   /* WHILE  */
-    DO = 268,                      /* DO  */
-    TRUE = 269,                    /* TRUE  */
-    FALSE = 270,                   /* FALSE  */
-    COLON = 271,                   /* COLON  */
-    SEMICOLON = 272,               /* SEMICOLON  */
-    COMMA = 273,                   /* COMMA  */
-    LPAREN = 274,                  /* LPAREN  */
-    RPAREN = 275,                  /* RPAREN  */
-    LBRACE = 276,                  /* LBRACE  */
-    RBRACE = 277,                  /* RBRACE  */
-    LBRACKET = 278,                /* LBRACKET  */
-    RBRACKET = 279,                /* RBRACKET  */
-    ASSIGN = 280,                  /* ASSIGN  */
-    ARROW = 281,                   /* ARROW  */
-    PLUS = 282,                    /* PLUS  */
-    MINUS = 283,                   /* MINUS  */
-    STAR = 284,                    /* STAR  */
-    SLASH = 285,                   /* SLASH  */
-    DOT = 286,                     /* DOT  */
-    GT = 287,                      /* GT  */
-    LT = 288,                      /* LT  */
-    EQEQ = 289,                    /* EQEQ  */
-    EQUAL = 290,                   /* EQUAL  */
-    IDENTIFIER = 291,              /* IDENTIFIER  */
-    TYPE_NAME = 292,               /* TYPE_NAME  */
-    INT_LITERAL = 293,             /* INT_LITERAL  */
-    STRING_LITERAL = 294           /* STRING_LITERAL  */
+    ELSEIF = 267,                  /* ELSEIF  */
+    WHILE = 268,                   /* WHILE  */
+    DO = 269,                      /* DO  */
+    TRUE = 270,                    /* TRUE  */
+    FALSE = 271,                   /* FALSE  */
+    COLON = 272,                   /* COLON  */
+    SEMICOLON = 273,               /* SEMICOLON  */
+    COMMA = 274,                   /* COMMA  */
+    LPAREN = 275,                  /* LPAREN  */
+    RPAREN = 276,                  /* RPAREN  */
+    LBRACE = 277,                  /* LBRACE  */
+    RBRACE = 278,                  /* RBRACE  */
+    LBRACKET = 279,                /* LBRACKET  */
+    RBRACKET = 280,                /* RBRACKET  */
+    ASSIGN = 281,                  /* ASSIGN  */
+    ARROW = 282,                   /* ARROW  */
+    PLUS = 283,                    /* PLUS  */
+    MINUS = 284,                   /* MINUS  */
+    STAR = 285,                    /* STAR  */
+    SLASH = 286,                   /* SLASH  */
+    DOT = 287,                     /* DOT  */
+    GT = 288,                      /* GT  */
+    LT = 289,                      /* LT  */
+    EQEQ = 290,                    /* EQEQ  */
+    EQUAL = 291,                   /* EQUAL  */
+    IDENTIFIER = 292,              /* IDENTIFIER  */
+    TYPE_NAME = 293,               /* TYPE_NAME  */
+    INT_LITERAL = 294,             /* INT_LITERAL  */
+    STRING_LITERAL = 295           /* STRING_LITERAL  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -128,7 +129,7 @@ union YYSTYPE
     std::vector<AST::Expr*>*         exprlist;
     std::vector<char*>*              strlist;
 
-#line 132 "parser.hpp"
+#line 133 "parser.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

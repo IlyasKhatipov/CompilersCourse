@@ -32,11 +32,11 @@ WS      [ \t\r]+
 
 %%
 
+"else"[ \t\r\n]+"if" { push_kw(TokenKind::ELSEIF, yytext); return ELSEIF; }
 "class"     { push_kw(TokenKind::CLASS, yytext); expectClassName = 1; return CLASS; }
 "var"       { push_kw(TokenKind::VAR,   yytext); expectVarName = 1;  return VAR; }
 "is"        { push_kw(TokenKind::IS,    yytext); return IS; }
 "end"       { push_kw(TokenKind::END,   yytext); return END; }
-
 "method"    { push_kw(TokenKind::METHOD, yytext); expectMethodName = 1; return METHOD; }
 "return"    { push_kw(TokenKind::RETURN, yytext); return RETURN; }
 "if"        { push_kw(TokenKind::IF, yytext); return IF; }

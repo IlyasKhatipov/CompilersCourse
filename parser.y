@@ -45,7 +45,7 @@ AST::Program* g_program = nullptr;
 }
 
 %token CLASS VAR IS END
-%token METHOD RETURN IF THEN ELSE
+%token METHOD RETURN IF THEN ELSE ELSEIF
 %token WHILE DO
 %token TRUE FALSE
 %token COLON SEMICOLON COMMA
@@ -67,8 +67,8 @@ AST::Program* g_program = nullptr;
 %type  <paramlist> opt_params param_list
 %type  <param>     param
 %type  <cstr>      type_spec type_list
-%type  <stmt>      method_body stmt simple_stmt if_stmt while_stmt opt_else
-%type  <stmtlist>  stmt_list elseif_list
+%type  <stmt>      method_body stmt simple_stmt if_stmt while_stmt block_stmt elif_tail opt_else
+%type  <stmtlist>  stmt_list
 %type  <expr>      expr assign_expr equality_expr relational_expr additive_expr multiplicative_expr unary_expr postfix_expr primary_expr lvalue type_as_expr
 %type  <exprlist>  arg_list opt_args
 
@@ -187,9 +187,11 @@ method_body
 stmt_list
     : stmt_list simple_stmt SEMICOLON { $$ = $1; $1->push_back($2); }
     | stmt_list if_stmt              { $$ = $1; $1->push_back($2); }
+    | stmt_list while_stmt           { $$ = $1; $1->push_back($2); }
     | stmt_list simple_stmt          { $$ = $1; $1->push_back($2); }
     | simple_stmt SEMICOLON          { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
     | if_stmt                        { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
+    | while_stmt                     { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
     | simple_stmt                    { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
     ;
 
@@ -208,46 +210,37 @@ simple_stmt
     | expr                                       { $$ = new AST::ExprStmt($1); }
     ;
 
+block_stmt
+    : stmt_list
+      {
+        auto* b = new AST::Block();
+        for (auto* s : *$1) b->stmts.push_back(s);
+        delete $1;
+        $$ = b;
+      }
+    ;
+
 if_stmt
-    : IF expr THEN stmt END
+    : IF expr THEN block_stmt elif_tail END
       {
-        $$ = new AST::IfStmt($2, $4, new AST::Block());
+        $$ = new AST::IfStmt($2, $4, $5);
       }
-    | IF expr THEN stmt ELSE stmt END
+    ;
+
+elif_tail
+    : ELSEIF expr THEN block_stmt elif_tail
       {
-        $$ = new AST::IfStmt($2, $4, $6);
+        $$ = new AST::IfStmt($2, $4, $5);
       }
-    | IF expr THEN stmt elseif_list opt_else END
+    | opt_else
       {
-        AST::Stmt* tail = $6 ? $6 : static_cast<AST::Stmt*>(new AST::Block());
-        for (auto it = $5->rbegin(); it != $5->rend(); ++it) {
-          auto* ifs = dynamic_cast<AST::IfStmt*>(*it);
-          if (ifs) {
-            ifs->elseS = tail;
-            tail = ifs;
-          }
-        }
-        delete $5;
-        $$ = new AST::IfStmt($2, $4, tail);
+        $$ = $1 ? $1 : static_cast<AST::Stmt*>(new AST::Block());
       }
     ;
 
 opt_else
-    : ELSE stmt { $$ = $2; }
-    |          { $$ = nullptr; }
-    ;
-
-elseif_list
-    : elseif_list ELSE IF expr THEN stmt
-      {
-        $$ = $1;
-        $$->push_back(new AST::IfStmt($4, $6, new AST::Block()));
-      }
-    | ELSE IF expr THEN stmt
-      {
-        $$ = new std::vector<AST::Stmt*>();
-        $$->push_back(new AST::IfStmt($3, $5, new AST::Block()));
-      }
+    : ELSE block_stmt { $$ = $2; }
+    |                 { $$ = nullptr; }
     ;
 
 while_stmt
