@@ -28,6 +28,9 @@ private:
 
     SemanticResult result;
 
+    std::vector<std::string> declaredLocals;
+    std::vector<std::string> usedLocals;
+
     void indexClasses(AST::Program* p);
     void analyzeClass(AST::ClassDecl* c);
     void analyzeMethod(AST::MethodDecl* m);
