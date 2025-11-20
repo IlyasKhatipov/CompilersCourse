@@ -1,0 +1,239 @@
+
+class C is
+  var x : Float;
+  method Foo(a : Float) : Float => a
+end
+
+class Animal is
+  method speak() : Void => 
+    "..."
+end
+
+class Dog is
+  method bark() : Void => 
+    "woof"
+end
+
+class Main is
+  method main() : Void =>
+    var d : Dog;
+    d.Foo(0);    
+    d.bark()
+end
+class Main is
+  method main() : Void =>
+    output("Hello, World!")
+endclass Animal is
+  method speak() : Void =>
+    output("...")
+end
+
+class Dog is
+  method bark() : Void =>
+    output("woof")
+end
+
+class Main is
+  var d : Dog;
+  method main() : Void =>
+    d.speak();
+    d.bark()
+endclass Animal is
+  method speak() : Void =>
+    output("...")
+end
+
+class Dog is
+  method speak() : Void =>
+    output("woof")
+end
+
+class Main is
+  var a : Animal;
+  var d : Dog;
+  method main() : Void =>
+    a := d;
+    a.speak()
+endclass Main is
+  var arr : Array<Int>;
+  method main() : Void =>
+    arr := Array<Int>(3);
+    arr[0] := 10;
+    arr[1] := 20;
+    arr[2] := 30;
+    output(arr[1])
+endclass Main is
+  method fact(n : Int) : Int =>
+    if n == 0 then
+      1
+    else
+      n * fact(n - 1)
+    end
+  
+  method main() : Void =>
+    output(fact(5))
+endclass Main is
+  var a : Bool;
+  method main() : Void =>
+    a := true;
+    if a then
+      output(1)
+    else
+      output(0)
+    end
+endclass A is
+  method get() : Int => 42
+end
+
+class B is
+  var obj : A;
+  method print() : Void =>
+    output(obj.get())
+end
+
+class Main is
+  var b : B;
+  method main() : Void =>
+    b.print()
+endclass Main is
+  var x : Int;
+  method main() : Void =>
+    x := 5;
+    output(x)
+endclass Main is
+  var a : Int;
+  var b : Int;
+  method main() : Void =>
+    a := 2;
+    b := 3;
+    output(a + b)
+endclass Main is
+  var x : Int;
+  method main() : Void =>
+    x := 10;
+    if x > 5 then
+      output(1)
+    else
+      output(0)
+    end
+endclass Main is
+  var i : Int;
+  method main() : Void =>
+    i := 0;
+    while i < 3 do
+      output(i);
+      i := i + 1
+    end
+endclass Main is
+  method square(x : Int) : Int => x * x
+  
+  method main() : Void =>
+    output(square(4))
+endclass Main is
+  method add(a : Int, b : Int) : Int => a + b
+  method mul(a : Int, b : Int) : Int => a * b
+  
+  method main() : Void =>
+    output(add(2, 3));
+    output(mul(2, 3))
+endclass Main is
+  var x : Int;
+  method main() : Void =>
+    input(x);
+    output(x + 1)
+endclass Point is
+  var x : Int;
+  var y : Int;
+  
+  method init(a : Int, b : Int) : Void =>
+    x := a;
+    y := b
+    
+  method print() : Void =>
+    output(x);
+    output(y)
+end
+
+class Main is
+  var p : Point;
+  method main() : Void =>
+    p.init(3, 4);
+    p.print()
+endclass Types is
+  var i : Int;
+  var j : Int;
+  var s : String;
+  var b : Bool;
+end
+
+class Main is
+  var flag : Bool;
+  method main() : Void =>
+    flag := false;
+    if flag == false then
+      output("keywords");
+      output(1 + 2 * 3);
+      output((10 - 5) / 5);
+      output(true);
+      output("done")
+    else
+      output("never")
+    end
+end
+class Main is
+  var i : Int;
+  method main() : Void =>
+    i := 0;
+    while i < 3 do
+      output(i);
+      i := i + 1
+    end
+end
+class Main is
+  var i : Int;
+  method main() : Void =>
+    if true then
+      output("true");
+    else
+      output("false");
+    end
+end
+class Main is
+  var x : Int;
+  method main() : Void =>
+    x := 5;
+    if x < 0 then
+      output("neg");
+    else if x == 0 then
+      output("zero");
+    else if x < 10 then
+      output("small");
+    else
+      output("big")
+    end
+end
+class Main is
+  method main() : Int =>
+    if true then
+      output("then-part");
+      return 0;
+      output("unreachable");
+      output("still unreachable")
+    else
+      output("else-part")
+    end
+end
+class Main is
+  method main() : Int =>
+    output("before");
+    return 1;
+    output("after");
+    output("after2")
+end
+class Main is
+  method main() : Void =>
+    output("before");
+    return;
+    output("after");
+    output("after2")
+end
