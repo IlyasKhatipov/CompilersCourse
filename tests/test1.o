@@ -1,4 +1,9 @@
-class Point is
-  var x : Int;
-  var y : Int;
+class Main is
+  var i : Int;
+  method main() : Void =>
+    i := 0;
+    while i < 3 do
+      output(i);
+      i := i + 1
+    end
 end

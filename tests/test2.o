@@ -1,4 +1,9 @@
-class Math is
-  method Add(a : Int, b : Int) : Int => a + b
-  method Neg(v : Float) : Float => -v
+class Main is
+  var i : Int;
+  method main() : Void =>
+    if true then
+      output("true");
+    else
+      output("false");
+    end
 end

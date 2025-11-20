@@ -1,0 +1,21 @@
+class Types is
+  var i : Int;
+  var j : Int;
+  var s : String;
+  var b : Bool;
+end
+
+class Main is
+  var flag : Bool;
+  method main() : Void =>
+    flag := false;
+    if flag == false then
+      output("keywords");
+      output(1 + 2 * 3);
+      output((10 - 5) / 5);
+      output(true);
+      output("done")
+    else
+      output("never")
+    end
+end

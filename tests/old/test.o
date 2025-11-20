@@ -17,6 +17,6 @@ end
 class Main is
   method main() : Void =>
     var d : Dog;
-    d.Foo(0);    # для примера, так как вызовы методов надо упрощать
+    d.Foo(0);    
     d.bark()
 end
