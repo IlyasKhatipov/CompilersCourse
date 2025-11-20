@@ -1,0 +1,7 @@
+class Main is
+  method main() : Void =>
+    output("before");
+    return;
+    output("after");
+    output("after2")
+end
