@@ -203,6 +203,7 @@ stmt
 
 simple_stmt
     : RETURN expr                                { $$ = new AST::ReturnStmt($2); }
+    | RETURN                                     { $$ = new AST::ReturnStmt(nullptr); }
     | VAR IDENTIFIER COLON type_spec             { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, nullptr)); free($2); free($4); }
     | VAR IDENTIFIER COLON type_spec EQUAL expr  { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6)); free($2); free($4); }
     | VAR IDENTIFIER COLON type_spec ASSIGN expr { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6)); free($2); free($4); }

@@ -49,7 +49,10 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    std::cout << "\n=== Semantic Analysis ===\n";
+    std::cout << "\n=== ORIGINAL AST ===\n";
+    g_program->print(std::cout);
+
+    std::cout << "\n=== SEMANTIC ANALYSIS ===\n";
     SemanticAnalyzer analyzer;
     SemanticResult res = analyzer.analyze(g_program);
 
@@ -82,7 +85,7 @@ int main(int argc, char** argv) {
     std::cout << "\n=== Final AST (After Semantic Analysis) ===\n";
     g_program->print(std::cout);
 
-    std::cout << "\n=== Interpretation ===\n";
+    std::cout << "\n=== INTERPRETATION ===\n";
     Interpreter interp(g_program);
     interp.run();
 

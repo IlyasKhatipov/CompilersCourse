@@ -217,16 +217,26 @@ void SemanticAnalyzer::analyzeStmt(AST::Stmt*& s) {
         if (!curMethod) {
             result.addError("Return used outside of method");
         } else {
-            analyzeExpr(ret->value);
-            auto rv = typeOfExpr(ret->value);
-            if (!curMethod->returnType.empty()) {
-                if (rv != "" && curMethod->returnType != rv) {
-                    result.addError("Return type mismatch in method '" + curMethod->name + "': expected " + curMethod->returnType + ", got " + rv);
+            if (curMethod->returnType == "Void") {
+                if (ret->value) {
+                    analyzeExpr(ret->value);
+                    result.addError("Void method '" + curMethod->name + "' must not return a value");
+                }
+            } else {
+                if (!ret->value) {
+                    result.addError("Non-void method '" + curMethod->name + "' must return a value of type '" + curMethod->returnType + "'");
+                } else {
+                    analyzeExpr(ret->value);
+                    auto rv = typeOfExpr(ret->value);
+                    if (rv != "" && curMethod->returnType != rv) {
+                        result.addError("Return type mismatch in method '" + curMethod->name + "': expected " + curMethod->returnType + ", got " + rv);
+                    }
                 }
             }
         }
         return;
     }
+
     if (auto* es = dynamic_cast<AST::ExprStmt*>(s)) {
         analyzeExpr(es->expr);
         return;
