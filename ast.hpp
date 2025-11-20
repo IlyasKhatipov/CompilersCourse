@@ -90,8 +90,13 @@ struct ReturnStmt : Stmt {
     Expr* value;
     explicit ReturnStmt(Expr* v) : value(v) {}
     ~ReturnStmt() { delete value; }
-    void print(std::ostream& os, int indent) const override { doIndent(os, indent); os << "return\n"; value->print(os, indent + 1); }
+    void print(std::ostream& os, int indent) const override {
+        doIndent(os, indent);
+        os << "return\n";
+        if (value) value->print(os, indent + 1);
+    }
 };
+
 
 struct IfStmt : Stmt {
     Expr* cond; Stmt* thenS; Stmt* elseS;
