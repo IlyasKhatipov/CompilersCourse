@@ -1,0 +1,6 @@
+class Main is
+  this() is
+    output(z)
+    var z : Integer(0)
+  end
+end

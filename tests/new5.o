@@ -1,0 +1,23 @@
+class Base is
+  var x : Integer(1)
+
+  method Inc() : Integer is
+    x := x.Plus(Integer(1))
+    return x
+  end
+end
+
+class Derived extends Base is
+  method Twice() : Integer is
+    var t : Integer(Inc())
+    return t.Mult(Integer(2))
+  end
+end
+
+class Main is
+  this() is
+    var d : Derived(Derived())
+    output(d.Inc())
+    output(d.Twice())
+  end
+end

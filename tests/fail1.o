@@ -1,0 +1,12 @@
+class Main is
+  this() is
+    var n : Integer(5)
+    while i.LessEqual(n) loop
+      s := s.Plus(i)
+      i := i.Plus(Integer(1))
+    end
+    var i : Integer(1)
+    output(s)
+    var s : Integer(0)
+  end
+end

@@ -1,36 +1,22 @@
 (module
   (import "env" "print_i32" (func $print_i32 (param i32)))
   (func $main (export "_start")
-    (local $z i32)
+    (local $limit i32)
     i32.const 0
-    local.set $z
-    i32.const 0
-    local.get $z
-    i32.eq
-    if
+    local.set $limit
+    block $while0
+      loop $loop0
+    i32.const 1
+        i32.eqz
+        br_if $while0
     i32.const 0
     i32.const 0
     i32.add
     drop
     i32.const 0
     drop
-    else
-    local.get $z
-    i32.const 0
-    i32.gt_s
-    if
-    local.get $z
-    i32.const 0
-    i32.sub
-    drop
-    i32.const 0
-    drop
-    else
-    i32.const 0
-    drop
-    i32.const 0
-    drop
-    end
+        br $loop0
+      end
     end
     return
   )
