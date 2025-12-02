@@ -1,21 +1,26 @@
 #include <cstdio>
 #include <iostream>
+#include <fstream>
+#include <string>
 #include "ast.hpp"
 #include "tokens.hpp"
 #include "semantic.hpp"
-#include "interpreter.hpp"
+#include "wasm_codegen.hpp"
 
 extern int yyparse(void);
 extern FILE* yyin;
 extern AST::Program* g_program;
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <source .o>\n";
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <source.o> <out.wat>\n";
         return 1;
     }
 
-    FILE* src = std::fopen(argv[1], "r");
+    const char* srcPath = argv[1];
+    const char* outPath = argv[2];
+
+    FILE* src = std::fopen(srcPath, "r");
     if (!src) {
         std::perror("fopen");
         return 1;
@@ -29,7 +34,7 @@ int main(int argc, char** argv) {
     std::cout << "\n";
     std::fclose(src);
 
-    yyin = std::fopen(argv[1], "r");
+    yyin = std::fopen(srcPath, "r");
     if (!yyin) {
         std::perror("fopen");
         return 1;
@@ -85,9 +90,20 @@ int main(int argc, char** argv) {
     std::cout << "\n=== Final AST (After Semantic Analysis) ===\n";
     g_program->print(std::cout);
 
-    std::cout << "\n=== INTERPRETATION ===\n";
-    Interpreter interp(g_program);
-    interp.run();
+    std::ofstream out(outPath);
+    if (!out) {
+        std::cerr << "Cannot open output file: " << outPath << "\n";
+        delete g_program;
+        g_program = nullptr;
+        return 4;
+    }
+
+    std::cout << "\n=== WASM CODEGEN ===\n";
+    WasmGenerator gen(g_program, res);
+    gen.generateToWat(out, "Main");
+    out.close();
+
+    std::cout << "Generated WAT file: " << outPath << "\n";
 
     delete g_program;
     g_program = nullptr;

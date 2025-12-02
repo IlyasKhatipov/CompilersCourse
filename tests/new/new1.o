@@ -1,0 +1,11 @@
+class Main is
+  var i : Integer(0)
+
+  this() is
+    var limit : Integer(5)
+    while i.Less(limit) loop
+      i := i.Plus(Integer(1))
+    end
+    return
+  end
+end

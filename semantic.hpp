@@ -9,8 +9,11 @@ struct SemanticResult {
     std::vector<std::string> errors;
     std::vector<std::string> warnings;
     std::vector<std::string> optimizations;
-    void addError(const std::string& s) { errors.push_back(s); ok = false; }
     SemanticResult() : ok(true) {}
+    void addError(const std::string& s) {
+        errors.push_back(s);
+        ok = false;
+    }
 };
 
 class SemanticAnalyzer {
@@ -20,33 +23,28 @@ public:
 
 private:
     std::unordered_map<std::string, AST::ClassDecl*> classes;
-
-    AST::ClassDecl* curClass = nullptr;
-    AST::MethodDecl* curMethod = nullptr;
-
-    std::vector<std::unordered_map<std::string,std::string>> localsStack;
-
+    AST::ClassDecl* curClass;
+    AST::MethodDecl* curMethod;
+    std::vector<std::unordered_map<std::string, std::string>> localsStack;
     SemanticResult result;
-
     std::vector<std::string> declaredLocals;
     std::vector<std::string> usedLocals;
 
     void indexClasses(AST::Program* p);
     void analyzeClass(AST::ClassDecl* c);
+    void analyzeFields(AST::ClassDecl* c);
     void analyzeMethod(AST::MethodDecl* m);
+    void analyzeCtor(AST::CtorDecl* c);
     void analyzeBlock(AST::Block* b);
     void analyzeStmt(AST::Stmt*& s);
     void analyzeExpr(AST::Expr*& e);
 
-    bool foldConstantsInExpr(AST::Expr*& e);
-    void simplifyIf(AST::Stmt*& s);
-    void removeUnreachableInBlock(AST::Block* b);
-
     std::string typeOfExpr(AST::Expr* e);
-    bool isLiteral(AST::Expr* e);
     void pushScope();
     void popScope();
     void declareLocal(const std::string& name, const std::string& type);
-
-    std::string curPos(AST::Node* n);
+    void markUsed(const std::string& name);
+    void removeUnreachableInBlock(AST::Block* b);
+    void simplifyIf(AST::Stmt*& s);
+    bool foldConstantsInExpr(AST::Expr*& e);
 };

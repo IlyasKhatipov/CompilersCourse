@@ -1,0 +1,17 @@
+class Main is
+  var x : Integer(0)
+
+  this() is
+    var z : Integer(3)
+    if x.Equal(z) then
+      x := x.Plus(Integer(1))
+    else
+      if z.Greater(x) then
+        x := z.Minus(x)
+      else
+        x := Integer(0)
+      end
+    end
+    return
+  end
+end

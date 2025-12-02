@@ -3,11 +3,6 @@
 #include <typeinfo>
 #include <cassert>
 
-std::string SemanticAnalyzer::curPos(AST::Node* n) {
-    (void)n;
-    return "";
-}
-
 SemanticAnalyzer::SemanticAnalyzer() {
     classes.clear();
     curClass = nullptr;
@@ -16,6 +11,7 @@ SemanticAnalyzer::SemanticAnalyzer() {
 }
 
 void SemanticAnalyzer::indexClasses(AST::Program* p) {
+    classes.clear();
     for (auto* c : p->classes) {
         classes[c->name] = c;
     }
@@ -30,26 +26,70 @@ SemanticResult SemanticAnalyzer::analyze(AST::Program* p) {
 
 void SemanticAnalyzer::analyzeClass(AST::ClassDecl* c) {
     curClass = c;
+    analyzeFields(c);
+    for (auto* ctor : c->ctors) analyzeCtor(ctor);
     for (auto* m : c->methods) analyzeMethod(m);
     curClass = nullptr;
 }
 
-void SemanticAnalyzer::analyzeMethod(AST::MethodDecl* m) {
-    curMethod = m;
-    pushScope();
+void SemanticAnalyzer::analyzeFields(AST::ClassDecl* c) {
+    for (auto* f : c->fields) {
+        if (!f->init) {
+            result.addError("Field '" + f->name + "' in class '" + c->name + "' must have initializer in O (var x : Expression)");
+            continue;
+        }
+        std::string t = typeOfExpr(f->init);
+        f->typeName = t;
+    }
+}
+
+void SemanticAnalyzer::analyzeCtor(AST::CtorDecl* c) {
+    curMethod = nullptr;
+    localsStack.clear();
     declaredLocals.clear();
     usedLocals.clear();
+    pushScope();
+    for (auto* p : c->params) {
+        declareLocal(p->name, p->typeName);
+    }
+    for (auto* f : curClass->fields) {
+        declareLocal(f->name, f->typeName);
+    }
+    if (auto* b = dynamic_cast<AST::Block*>(c->body)) {
+        analyzeBlock(b);
+    } else if (c->body) {
+        AST::Block* wrap = new AST::Block();
+        wrap->stmts.push_back(c->body);
+        c->body = wrap;
+        analyzeBlock(wrap);
+    }
+    removeUnreachableInBlock(dynamic_cast<AST::Block*>(c->body));
+    popScope();
+}
+
+void SemanticAnalyzer::analyzeMethod(AST::MethodDecl* m) {
+    curMethod = m;
+    localsStack.clear();
+    declaredLocals.clear();
+    usedLocals.clear();
+    pushScope();
     for (auto* p : m->params) {
         declareLocal(p->name, p->typeName);
     }
     for (auto* f : curClass->fields) {
         declareLocal(f->name, f->typeName);
     }
-    if (m->body) {
-        analyzeBlock(dynamic_cast<AST::Block*>(m->body));
+    if (auto* b = dynamic_cast<AST::Block*>(m->body)) {
+        analyzeBlock(b);
+    } else if (m->body) {
+        AST::Block* wrap = new AST::Block();
+        wrap->stmts.push_back(m->body);
+        m->body = wrap;
+        analyzeBlock(wrap);
     } else {
-        result.addError("Method " + m->name + " has empty body");
+        result.addError("Method '" + m->name + "' in class '" + curClass->name + "' has no body");
     }
+    removeUnreachableInBlock(dynamic_cast<AST::Block*>(m->body));
     for (const auto& name : declaredLocals) {
         bool used = false;
         for (const auto& u : usedLocals) {
@@ -78,72 +118,89 @@ void SemanticAnalyzer::popScope() {
 void SemanticAnalyzer::declareLocal(const std::string& name, const std::string& type) {
     if (localsStack.empty()) pushScope();
     localsStack.back()[name] = type;
+    declaredLocals.push_back(name);
+}
+
+void SemanticAnalyzer::markUsed(const std::string& name) {
+    usedLocals.push_back(name);
 }
 
 std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
     if (!e) return "";
-    if (auto* il = dynamic_cast<AST::IntLiteral*>(e)) return std::string("Int");
+    if (auto* il = dynamic_cast<AST::IntLiteral*>(e)) return std::string("Integer");
+    if (auto* rl = dynamic_cast<AST::RealLiteral*>(e)) return std::string("Real");
     if (auto* sl = dynamic_cast<AST::StringLiteral*>(e)) return std::string("String");
-    if (auto* bl = dynamic_cast<AST::BoolLiteral*>(e)) return std::string("Bool");
+    if (auto* bl = dynamic_cast<AST::BoolLiteral*>(e)) return std::string("Boolean");
+    if (auto* th = dynamic_cast<AST::ThisExpr*>(e)) {
+        if (!curClass) {
+            result.addError("this used outside of class");
+            return "";
+        }
+        return curClass->name;
+    }
     if (auto* id = dynamic_cast<AST::Identifier*>(e)) {
         for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
             auto found = it->find(id->name);
-            if (found != it->end()) return found->second;
+            if (found != it->end()) {
+                markUsed(id->name);
+                return found->second;
+            }
         }
         result.addError("Use of undeclared identifier '" + id->name + "'");
         return "";
     }
     if (auto* bin = dynamic_cast<AST::Binary*>(e)) {
-        auto lhs = typeOfExpr(bin->lhs);
-        auto rhs = typeOfExpr(bin->rhs);
-        switch (bin->op) {
-            case AST::BinOp::Add: case AST::BinOp::Sub: case AST::BinOp::Mul: case AST::BinOp::Div:
-                if (lhs != "Int" || rhs != "Int") {
-                    result.addError("Arithmetic operator used with non-Int operands");
+        if (bin->op == AST::BinOp::Assign) {
+            auto rhsType = typeOfExpr(bin->rhs);
+            if (auto* lid = dynamic_cast<AST::Identifier*>(bin->lhs)) {
+                std::string lhsType;
+                for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
+                    auto found = it->find(lid->name);
+                    if (found != it->end()) {
+                        lhsType = found->second;
+                        break;
+                    }
+                }
+                if (lhsType.empty()) {
+                    result.addError("Assignment to undeclared variable '" + lid->name + "'");
                     return "";
                 }
-                return "Int";
-            case AST::BinOp::Gt: case AST::BinOp::Lt:
-                if (lhs != "Int" || rhs != "Int") {
-                    result.addError("Relational operator used with non-Int operands");
+                if (!rhsType.empty() && lhsType != rhsType) {
+                    result.addError("Type mismatch in assignment to '" + lid->name + "'");
                     return "";
                 }
-                return "Bool";
-            case AST::BinOp::Eq:
-                if (lhs == "" || rhs == "" || lhs != rhs) {
-                    result.addError("Equality operator used with incompatible types");
-                    return "";
-                }
-                return "Bool";
-            case AST::BinOp::Assign:
-                if (auto* lid = dynamic_cast<AST::Identifier*>(bin->lhs)) {
-                    std::string lhs_type;
-                    for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                        auto found = it->find(lid->name);
-                        if (found != it->end()) { lhs_type = found->second; break; }
-                    }
-                    if (lhs_type.empty()) {
-                        result.addError("Assignment to undeclared variable '" + lid->name + "'");
-                        return "";
-                    }
-                    if (lhs_type != rhs) {
-                        result.addError("Type mismatch in assignment to '" + lid->name + "'");
-                        return "";
-                    }
-                    return lhs_type;
-                }
-                return rhs;
+                return lhsType;
+            }
+            return rhsType;
         }
+        auto lt = typeOfExpr(bin->lhs);
+        auto rt = typeOfExpr(bin->rhs);
+        if (bin->op == AST::BinOp::Add || bin->op == AST::BinOp::Sub || bin->op == AST::BinOp::Mul || bin->op == AST::BinOp::Div) {
+            if (lt != "Integer" || rt != "Integer") {
+                result.addError("Infix arithmetic operators are not allowed in O; use methods Plus/Minus/Mult/Div");
+                return "";
+            }
+            return "Integer";
+        }
+        if (bin->op == AST::BinOp::Gt || bin->op == AST::BinOp::Lt || bin->op == AST::BinOp::Eq) {
+            if (lt.empty() || rt.empty() || lt != rt) {
+                result.addError("Relational operator used with incompatible types");
+                return "";
+            }
+            return "Boolean";
+        }
+        return "";
     }
     if (auto* un = dynamic_cast<AST::Unary*>(e)) {
         auto rt = typeOfExpr(un->rhs);
         if (un->op == AST::Unary::Op::Neg) {
-            if (rt != "Int") {
-                result.addError("Unary - applied to non-Int");
+            if (rt != "Integer" && rt != "Real") {
+                result.addError("Unary - applied to non-numeric type");
                 return "";
             }
-            return "Int";
+            return rt;
         }
+        return "";
     }
     if (auto* call = dynamic_cast<AST::Call*>(e)) {
         if (auto* id = dynamic_cast<AST::Identifier*>(call->callee)) {
@@ -151,36 +208,43 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
                 for (auto* a : call->args) typeOfExpr(a);
                 return "";
             }
-            auto it = classes.find(curClass->name);
-            if (it != classes.end()) {
-                bool found = false;
-                for (auto* m : it->second->methods) {
-                    if (m->name == id->name) { found = true; break; }
-                }
-                if (!found) {
-                    result.addError("Call to undeclared method '" + id->name + "' in class '" + curClass->name + "'");
+            auto itc = classes.find(id->name);
+            if (itc != classes.end()) {
+                for (auto* a : call->args) typeOfExpr(a);
+                return id->name;
+            }
+            if (curClass) {
+                for (auto* m : curClass->methods) {
+                    if (m->name == id->name) {
+                        for (auto* a : call->args) typeOfExpr(a);
+                        return m->returnType;
+                    }
                 }
             }
+            for (auto* a : call->args) typeOfExpr(a);
+            result.addError("Call to unknown function or constructor '" + id->name + "'");
             return "";
         }
+        if (auto* ma = dynamic_cast<AST::MemberAccess*>(call->callee)) {
+            std::string objType = typeOfExpr(ma->object);
+            if (objType == "Integer") {
+                if (ma->member == "Plus" || ma->member == "Minus" || ma->member == "Mult" || ma->member == "Div" || ma->member == "Rem") {
+                    for (auto* a : call->args) typeOfExpr(a);
+                    return "Integer";
+                }
+                if (ma->member == "Less" || ma->member == "LessEqual" || ma->member == "Greater" || ma->member == "GreaterEqual" || ma->member == "Equal") {
+                    for (auto* a : call->args) typeOfExpr(a);
+                    return "Boolean";
+                }
+            }
+            for (auto* a : call->args) typeOfExpr(a);
+            return "";
+        }
+        for (auto* a : call->args) typeOfExpr(a);
         return "";
     }
     if (auto* ma = dynamic_cast<AST::MemberAccess*>(e)) {
-        if (auto* objid = dynamic_cast<AST::Identifier*>(ma->object)) {
-            std::string t;
-            for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                auto found = it->find(objid->name);
-                if (found != it->end()) { t = found->second; break; }
-            }
-            if (t.empty()) {
-                result.addError("Unknown object '" + objid->name + "' for member access");
-                return "";
-            }
-            auto cit = classes.find(t);
-            if (cit != classes.end()) {
-                for (auto* f : cit->second->fields) if (f->name == ma->member) return f->typeName;
-            }
-        }
+        typeOfExpr(ma->object);
         return "";
     }
     if (auto* idx = dynamic_cast<AST::Index*>(e)) {
@@ -203,6 +267,10 @@ void SemanticAnalyzer::analyzeStmt(AST::Stmt*& s) {
     if (!s) return;
     if (auto* ifs = dynamic_cast<AST::IfStmt*>(s)) {
         analyzeExpr(ifs->cond);
+        std::string ct = typeOfExpr(ifs->cond);
+        if (ct != "Boolean") {
+            result.addError("If condition must be Boolean");
+        }
         analyzeStmt(ifs->thenS);
         analyzeStmt(ifs->elseS);
         simplifyIf(s);
@@ -210,47 +278,55 @@ void SemanticAnalyzer::analyzeStmt(AST::Stmt*& s) {
     }
     if (auto* w = dynamic_cast<AST::WhileStmt*>(s)) {
         analyzeExpr(w->cond);
-        analyzeBlock(dynamic_cast<AST::Block*>(w->body));
+        std::string ct = typeOfExpr(w->cond);
+        if (ct != "Boolean") {
+            result.addError("While condition must be Boolean");
+        }
+        if (auto* blk = dynamic_cast<AST::Block*>(w->body)) {
+            pushScope();
+            analyzeBlock(blk);
+            popScope();
+        } else {
+            analyzeStmt(w->body);
+        }
         return;
     }
     if (auto* ret = dynamic_cast<AST::ReturnStmt*>(s)) {
         if (!curMethod) {
-            result.addError("Return used outside of method");
+            analyzeExpr(ret->value);
+            return;
+        }
+        if (curMethod->returnType.empty()) {
+            if (ret->value) {
+                analyzeExpr(ret->value);
+                result.addError("Void-like method '" + curMethod->name + "' must not return a value");
+            }
         } else {
-            if (curMethod->returnType == "Void") {
-                if (ret->value) {
-                    analyzeExpr(ret->value);
-                    result.addError("Void method '" + curMethod->name + "' must not return a value");
-                }
+            if (!ret->value) {
+                result.addError("Method '" + curMethod->name + "' must return a value of type '" + curMethod->returnType + "'");
             } else {
-                if (!ret->value) {
-                    result.addError("Non-void method '" + curMethod->name + "' must return a value of type '" + curMethod->returnType + "'");
-                } else {
-                    analyzeExpr(ret->value);
-                    auto rv = typeOfExpr(ret->value);
-                    if (rv != "" && curMethod->returnType != rv) {
-                        result.addError("Return type mismatch in method '" + curMethod->name + "': expected " + curMethod->returnType + ", got " + rv);
-                    }
+                analyzeExpr(ret->value);
+                std::string rt = typeOfExpr(ret->value);
+                if (!rt.empty() && rt != curMethod->returnType) {
+                    result.addError("Return type mismatch in method '" + curMethod->name + "': expected " + curMethod->returnType + ", got " + rt);
                 }
             }
         }
         return;
     }
-
     if (auto* es = dynamic_cast<AST::ExprStmt*>(s)) {
         analyzeExpr(es->expr);
         return;
     }
     if (auto* vds = dynamic_cast<AST::VarDeclStmt*>(s)) {
         if (vds->decl) {
-            declareLocal(vds->decl->name, vds->decl->typeName);
-            declaredLocals.push_back(vds->decl->name);
-            if (vds->decl->init) analyzeExpr(vds->decl->init);
-            if (vds->decl->init) {
-                auto it = typeOfExpr(vds->decl->init);
-                if (it != "" && it != vds->decl->typeName) {
-                    result.addError("Initializer type mismatch for variable '" + vds->decl->name + "'");
-                }
+            if (!vds->decl->init) {
+                result.addError("Local variable '" + vds->decl->name + "' must have initializer in O (var x : Expression)");
+            } else {
+                analyzeExpr(vds->decl->init);
+                std::string t = typeOfExpr(vds->decl->init);
+                vds->decl->typeName = t;
+                declareLocal(vds->decl->name, t);
             }
         }
         return;
@@ -267,19 +343,11 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
     if (!e) return;
     bool folded = foldConstantsInExpr(e);
     if (folded) {
+        result.optimizations.push_back("Constant expression folded");
     }
     if (auto* bin = dynamic_cast<AST::Binary*>(e)) {
         analyzeExpr(bin->lhs);
         analyzeExpr(bin->rhs);
-        if (bin->op == AST::BinOp::Assign) {
-            if (auto* lid = dynamic_cast<AST::Identifier*>(bin->lhs)) {
-                bool found = false;
-                for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-                    if (it->find(lid->name) != it->end()) { found = true; break; }
-                }
-                if (!found) result.addError("Assignment to undeclared variable '" + lid->name + "'");
-            }
-        }
         return;
     }
     if (auto* un = dynamic_cast<AST::Unary*>(e)) {
@@ -287,17 +355,7 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
         return;
     }
     if (auto* call = dynamic_cast<AST::Call*>(e)) {
-        if (auto* id = dynamic_cast<AST::Identifier*>(call->callee)) {
-            if (id->name == "output" || id->name == "print") {
-                for (auto*& a : call->args) analyzeExpr(a);
-                return;
-            }
-            bool found = false;
-            for (auto* m : curClass->methods) if (m->name == id->name) { found = true; break; }
-            if (!found) result.addError("Call to undeclared method '" + id->name + "'");
-        } else {
-            analyzeExpr(call->callee);
-        }
+        analyzeExpr(call->callee);
         for (auto*& a : call->args) analyzeExpr(a);
         return;
     }
@@ -313,19 +371,17 @@ void SemanticAnalyzer::analyzeExpr(AST::Expr*& e) {
     if (auto* id = dynamic_cast<AST::Identifier*>(e)) {
         bool found = false;
         for (auto it = localsStack.rbegin(); it != localsStack.rend(); ++it) {
-            if (it->find(id->name) != it->end()) { found = true; break; }
+            if (it->find(id->name) != it->end()) {
+                found = true;
+                markUsed(id->name);
+                break;
+            }
         }
-        if (found) {
-            usedLocals.push_back(id->name);
-        } else {
+        if (!found) {
             result.addError("Use of undeclared identifier '" + id->name + "'");
         }
         return;
     }
-}
-
-bool SemanticAnalyzer::isLiteral(AST::Expr* e) {
-    return dynamic_cast<AST::IntLiteral*>(e) || dynamic_cast<AST::StringLiteral*>(e) || dynamic_cast<AST::BoolLiteral*>(e);
 }
 
 bool SemanticAnalyzer::foldConstantsInExpr(AST::Expr*& e) {
@@ -344,8 +400,12 @@ bool SemanticAnalyzer::foldConstantsInExpr(AST::Expr*& e) {
                         case AST::BinOp::Sub: resv = a - b; break;
                         case AST::BinOp::Mul: resv = a * b; break;
                         case AST::BinOp::Div:
-                            if (b == 0) { result.addError("Division by zero in constant expression"); return false; }
-                            resv = a / b; break;
+                            if (b == 0) {
+                                result.addError("Division by zero in constant expression");
+                                return false;
+                            }
+                            resv = a / b;
+                            break;
                         default: break;
                     }
                     delete e;
