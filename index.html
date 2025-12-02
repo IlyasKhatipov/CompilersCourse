@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>O program in WebAssembly</title>
+  </head>
+  <body>
+    <pre id="log"></pre>
+    <script>
+      const logElem = document.getElementById("log");
+      function logLine(text) {
+        logElem.textContent += text + "\n";
+        console.log(text);
+      }
+      async function main() {
+        try {
+          const response = await fetch("out.wasm");
+          const bytes = await response.arrayBuffer();
+          const module = await WebAssembly.instantiate(bytes, {
+            env: {
+              print_i32: function(x) {
+                logLine("output: " + x);
+              }
+            }
+          });
+          if (module.instance.exports._start) {
+            module.instance.exports._start();
+          } else if (module.instance.exports.main) {
+            module.instance.exports.main();
+          } else {
+            logLine("No _start or main export in wasm module");
+          }
+        } catch (e) {
+          logLine("Error: " + e);
+        }
+      }
+      main();
+    </script>
+  </body>
+</html>

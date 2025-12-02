@@ -77,10 +77,11 @@ static AST::ClassDecl* currentClass = nullptr;
 %type  <ctordecl>  ctor_decl
 %type  <paramlist> opt_params param_list
 %type  <param>     param
-%type  <stmt>      stmt simple_stmt if_stmt while_stmt block_stmt
+%type  <stmt>      stmt simple_stmt if_stmt while_stmt block_stmt method_body opt_else
 %type  <stmtlist>  stmt_list
 %type  <expr>      expr primary postfix
 %type  <exprlist>  arg_list opt_args
+%type  <cstr>      opt_extends opt_ret_type
 
 %%
 
