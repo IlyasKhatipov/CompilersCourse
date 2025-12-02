@@ -1,8 +1,13 @@
-class Main is
-  method Run() : Int =>
-    if true then
-      return 42
-    else
-      return 0
-    end
+class Point is
+  var x : Integer
+  var y : Integer
+  
+  this(xVal: Integer, yVal: Integer) is
+    x := xVal
+    y := yVal
+  end
+  
+  method add(other: Point) : Point is
+    return Point(x.Plus(other.x), y.Plus(other.y))
+  end
 end

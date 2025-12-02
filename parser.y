@@ -17,7 +17,11 @@ AST::Program* g_program = nullptr;
 %code requires {
   #include <vector>
   namespace AST {
-    struct Node; struct Program; struct ClassDecl; struct VarDecl; struct Expr; struct Stmt; struct MethodDecl; struct Param; struct Block;
+    struct Node; struct Program; struct ClassDecl; struct VarDecl; struct Expr; struct Stmt; 
+    struct MethodDecl; struct ConstructorDecl; struct Param; struct Block; struct ReturnStmt;
+    struct VarDeclStmt; struct AssignmentStmt; struct ExprStmt; struct IfStmt; struct WhileStmt;
+    struct MemberAccess; struct MethodCall; struct ConstructorCall; struct IntLiteral;
+    struct RealLiteral; struct BoolLiteral; struct Identifier; struct ThisLiteral;
   }
 }
 
@@ -26,6 +30,7 @@ AST::Program* g_program = nullptr;
 
 %union {
     long long                        ival;
+    double                           dval;
     char*                            cstr;
     AST::Program*                    program;
     AST::ClassDecl*                  classdecl;
@@ -33,7 +38,9 @@ AST::Program* g_program = nullptr;
     AST::Expr*                       expr;
     AST::Stmt*                       stmt;
     AST::MethodDecl*                 methoddecl;
+    AST::ConstructorDecl*            constructor;
     AST::Param*                      param;
+    AST::Block*                      block;
     AST::Node*                       node;
     std::vector<AST::ClassDecl*>*    classlist;
     std::vector<AST::Node*>*         memberlist;
@@ -41,21 +48,20 @@ AST::Program* g_program = nullptr;
     std::vector<AST::Param*>*        paramlist;
     std::vector<AST::Stmt*>*         stmtlist;
     std::vector<AST::Expr*>*         exprlist;
-    std::vector<char*>*              strlist;
 }
 
-%token CLASS VAR IS END
-%token METHOD RETURN IF THEN ELSE
-%token WHILE DO
-%token TRUE FALSE
-%token COLON SEMICOLON COMMA
-%token LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
-%token ASSIGN ARROW PLUS MINUS STAR SLASH
-%token DOT GT LT EQEQ EQUAL
+%token CLASS EXTENDS IS END
+%token VAR METHOD THIS
+%token WHILE LOOP IF THEN ELSE
+%token RETURN
+%token TRUE FALSE NEW
+
 %token <cstr> IDENTIFIER
-%token <cstr> TYPE_NAME
-%token <ival> INT_LITERAL
-%token <cstr> STRING_LITERAL
+%token <ival> INTEGER_LITERAL
+%token <dval> REAL_LITERAL
+
+%token ASSIGN ARROW COLON COMMA DOT
+%token LPAREN RPAREN LBRACKET RBRACKET
 
 %type  <program>   program
 %type  <classlist> class_list
@@ -64,19 +70,30 @@ AST::Program* g_program = nullptr;
 %type  <node>      member
 %type  <vardecl>   var_decl
 %type  <methoddecl> method_decl
-%type  <paramlist> opt_params param_list
+%type  <constructor> constructor_decl
+%type  <paramlist> param_list opt_params
 %type  <param>     param
-%type  <cstr>      type_spec type_list
-%type  <stmt>      method_body stmt simple_stmt if_stmt while_stmt
+%type  <stmt>      stmt simple_stmt if_stmt while_stmt return_stmt method_body
+%type  <block>     body opt_else
 %type  <stmtlist>  stmt_list
-%type  <expr>      expr assign_expr equality_expr relational_expr additive_expr multiplicative_expr unary_expr postfix_expr primary_expr lvalue type_as_expr
+%type  <expr>      expr primary_expr opt_expr
 %type  <exprlist>  arg_list opt_args
+%type  <cstr>      opt_extends opt_return_type
+
+%left DOT
+%left LPAREN RPAREN
 
 %%
 
 program
     : class_list
-      { g_program = new AST::Program(); for (auto* c : *$1) g_program->classes.push_back(c); delete $1; }
+      {
+        g_program = new AST::Program();
+        for (auto* c : *$1) g_program->classes.push_back(c);
+        delete $1;
+      }
+    | /* empty */
+      { g_program = new AST::Program(); }
     ;
 
 class_list
@@ -85,17 +102,28 @@ class_list
     ;
 
 class_decl
-    : CLASS IDENTIFIER IS class_body END
+    : CLASS IDENTIFIER opt_extends IS class_body END
       {
-        $$ = new AST::ClassDecl($2);
-        for (auto* n : *$4) { if (auto* v = dynamic_cast<AST::VarDecl*>(n)) $$->fields.push_back(v); else if (auto* m = dynamic_cast<AST::MethodDecl*>(n)) $$->methods.push_back(m); else delete n; }
-        free($2); delete $4;
+        $$ = new AST::ClassDecl($2, $3);
+        for (auto* n : *$5) {
+          if (auto* v = dynamic_cast<AST::VarDecl*>(n)) $$->fields.push_back(v);
+          else if (auto* m = dynamic_cast<AST::MethodDecl*>(n)) $$->methods.push_back(m);
+          else if (auto* c = dynamic_cast<AST::ConstructorDecl*>(n)) $$->constructors.push_back(c);
+          else delete n;
+        }
+        free($2);
+        delete $5;
       }
+    ;
+
+opt_extends
+    : EXTENDS IDENTIFIER { $$ = strdup($2); free($2); }
+    | /* empty */        { $$ = nullptr; }
     ;
 
 class_body
     : member_list { $$ = $1; }
-    |             { $$ = new std::vector<AST::Node*>(); }
+    | /* empty */ { $$ = new std::vector<AST::Node*>(); }
     ;
 
 member_list
@@ -104,53 +132,61 @@ member_list
     ;
 
 member
-    : var_decl    { $$ = $1; }
-    | method_decl { $$ = $1; }
-    ;
-
-type_spec
-    : TYPE_NAME
-      { $$ = $1; }
-    | TYPE_NAME LT type_list GT
-      {
-        std::string s = std::string($1) + "<" + std::string($3) + ">";
-        $$ = strdup(s.c_str());
-        free($1); free($3);
-      }
-    ;
-
-type_list
-    : type_spec
-      { $$ = $1; }
-    | type_list COMMA type_spec
-      {
-        std::string s = std::string($1) + "," + std::string($3);
-        $$ = strdup(s.c_str());
-        free($1); free($3);
-      }
+    : var_decl         { $$ = $1; }
+    | method_decl      { $$ = $1; }
+    | constructor_decl { $$ = $1; }
     ;
 
 var_decl
-    : VAR IDENTIFIER COLON type_spec SEMICOLON
-      { $$ = new AST::VarDecl($2, $4, nullptr); free($2); free($4); }
-    | VAR IDENTIFIER COLON type_spec EQUAL expr SEMICOLON
-      { $$ = new AST::VarDecl($2, $4, $6); free($2); free($4); }
-    | VAR IDENTIFIER COLON type_spec ASSIGN expr SEMICOLON
-      { $$ = new AST::VarDecl($2, $4, $6); free($2); free($4); }
+    : VAR IDENTIFIER COLON expr
+      { $$ = new AST::VarDecl($2, $4); free($2); }
     ;
 
 method_decl
-    : METHOD IDENTIFIER LPAREN opt_params RPAREN COLON type_spec ARROW method_body
+    : METHOD IDENTIFIER LPAREN opt_params RPAREN opt_return_type method_body
       {
-        $$ = new AST::MethodDecl($2, $7, $9);
-        if ($4) { for (auto* p : *$4) $$->params.push_back(p); delete $4; }
-        free($2); free($7);
+        // Создаем строку возвращаемого типа
+        std::string returnType = $6 ? std::string($6) : "";
+        $$ = new AST::MethodDecl($2, returnType, $7);
+        if ($4) {
+          for (auto* p : *$4) $$->params.push_back(p);
+          delete $4;
+        }
+        free($2);
+        if ($6) free($6);
+      }
+    ;
+
+opt_return_type
+    : COLON IDENTIFIER { $$ = strdup($2); free($2); }
+    | /* empty */      { $$ = nullptr; }
+    ;
+
+method_body
+    : IS body END
+      { $$ = $2; }
+    | ARROW expr
+      { 
+        auto* returnStmt = new AST::ReturnStmt($2);
+        auto* block = new AST::Block();
+        block->stmts.push_back(returnStmt);
+        $$ = block;
+      }
+    | /* empty */  // forward declaration
+      { $$ = nullptr; }
+    ;
+
+constructor_decl
+    : THIS LPAREN opt_params RPAREN IS body END
+      {
+        $$ = new AST::ConstructorDecl($3);
+        $$->body = $6;
       }
     ;
 
 opt_params
     : param_list { $$ = $1; }
-    |            { $$ = new std::vector<AST::Param*>(); }
+    | /* empty */ { $$ = new std::vector<AST::Param*>(); }
     ;
 
 param_list
@@ -159,11 +195,11 @@ param_list
     ;
 
 param
-    : IDENTIFIER COLON type_spec
+    : IDENTIFIER COLON IDENTIFIER
       { $$ = new AST::Param($1, $3); free($1); free($3); }
     ;
 
-method_body
+body
     : stmt_list
       {
         auto* b = new AST::Block();
@@ -174,121 +210,88 @@ method_body
     ;
 
 stmt_list
-    : stmt_list simple_stmt SEMICOLON { $$ = $1; $1->push_back($2); }
-    | stmt_list if_stmt              { $$ = $1; $1->push_back($2); }
-    | stmt_list simple_stmt          { $$ = $1; $1->push_back($2); }
-    | simple_stmt SEMICOLON          { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
-    | if_stmt                        { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
-    | simple_stmt                    { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
+    : stmt_list stmt { $$ = $1; $1->push_back($2); }
+    | stmt           { $$ = new std::vector<AST::Stmt*>(); $$->push_back($1); }
     ;
 
 stmt
-    : simple_stmt { $$ = $1; }
-    | if_stmt     { $$ = $1; }
-    | while_stmt  { $$ = $1; }
+    : simple_stmt
+    | if_stmt
+    | while_stmt
+    | return_stmt
     ;
 
 simple_stmt
-    : RETURN expr                                { $$ = new AST::ReturnStmt($2); }
-    | VAR IDENTIFIER COLON type_spec             { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, nullptr)); free($2); free($4); }
-    | VAR IDENTIFIER COLON type_spec EQUAL expr  { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6)); free($2); free($4); }
-    | VAR IDENTIFIER COLON type_spec ASSIGN expr { $$ = new AST::VarDeclStmt(new AST::VarDecl($2, $4, $6)); free($2); free($4); }
-    | lvalue ASSIGN expr                         { $$ = new AST::ExprStmt(new AST::Binary(AST::BinOp::Assign, $1, $3)); }
-    | expr                                       { $$ = new AST::ExprStmt($1); }
+    : var_decl
+      { $$ = new AST::VarDeclStmt($1); }
+    | IDENTIFIER ASSIGN expr
+      { $$ = new AST::AssignmentStmt($1, $3); free($1); }
+    | expr
+      { $$ = new AST::ExprStmt($1); }
     ;
 
 if_stmt
-    : IF expr THEN stmt ELSE stmt END
-      { $$ = new AST::IfStmt($2, $4, $6); }
+    : IF expr THEN body opt_else END
+      { $$ = new AST::IfStmt($2, $4, $5); }
+    ;
+
+opt_else
+    : ELSE body { $$ = $2; }
+    | /* empty */ { $$ = nullptr; }
     ;
 
 while_stmt
-    : WHILE expr DO stmt_list END
-      {
-        auto* b = new AST::Block();
-        for (auto* s : *$4) b->stmts.push_back(s);
-        delete $4;
-        $$ = new AST::WhileStmt($2, b);
-      }
+    : WHILE expr LOOP body END
+      { $$ = new AST::WhileStmt($2, $4); }
+    ;
+
+return_stmt
+    : RETURN opt_expr
+      { $$ = new AST::ReturnStmt($2); }
+    ;
+
+opt_expr
+    : expr { $$ = $1; }
+    | /* empty */ { $$ = nullptr; }
     ;
 
 expr
-    : assign_expr { $$ = $1; }
-    ;
-
-assign_expr
-    : lvalue ASSIGN assign_expr { $$ = new AST::Binary(AST::BinOp::Assign, $1, $3); }
-    | equality_expr             { $$ = $1; }
-    ;
-
-equality_expr
-    : equality_expr EQEQ relational_expr { $$ = new AST::Binary(AST::BinOp::Eq, $1, $3); }
-    | relational_expr                    { $$ = $1; }
-    ;
-
-relational_expr
-    : relational_expr GT additive_expr { $$ = new AST::Binary(AST::BinOp::Gt, $1, $3); }
-    | relational_expr LT additive_expr { $$ = new AST::Binary(AST::BinOp::Lt, $1, $3); }
-    | additive_expr                    { $$ = $1; }
-    ;
-
-additive_expr
-    : additive_expr PLUS multiplicative_expr  { $$ = new AST::Binary(AST::BinOp::Add, $1, $3); }
-    | additive_expr MINUS multiplicative_expr { $$ = new AST::Binary(AST::BinOp::Sub, $1, $3); }
-    | multiplicative_expr                     { $$ = $1; }
-    ;
-
-multiplicative_expr
-    : multiplicative_expr STAR unary_expr  { $$ = new AST::Binary(AST::BinOp::Mul, $1, $3); }
-    | multiplicative_expr SLASH unary_expr { $$ = new AST::Binary(AST::BinOp::Div, $1, $3); }
-    | unary_expr                           { $$ = $1; }
-    ;
-
-unary_expr
-    : MINUS unary_expr  { $$ = new AST::Unary(AST::Unary::Op::Neg, $2); }
-    | postfix_expr      { $$ = $1; }
-    ;
-
-postfix_expr
-    : postfix_expr LPAREN opt_args RPAREN
-      { auto* call = new AST::Call($1); for (auto* e : *$3) call->args.push_back(e); delete $3; $$ = call; }
-    | postfix_expr DOT IDENTIFIER
+    : primary_expr
+    | expr DOT IDENTIFIER
       { $$ = new AST::MemberAccess($1, $3); free($3); }
-    | postfix_expr LBRACKET expr RBRACKET
-      { $$ = new AST::Index($1, $3); }
-    | primary_expr
-      { $$ = $1; }
+    | expr DOT IDENTIFIER LPAREN opt_args RPAREN
+      { $$ = new AST::MethodCall($1, $3, $5); free($3); }
+    | IDENTIFIER LPAREN opt_args RPAREN
+      { $$ = new AST::MethodCall(new AST::Identifier("this"), $1, $3); free($1); }
+    | NEW IDENTIFIER LPAREN opt_args RPAREN
+      { $$ = new AST::ConstructorCall($2, $4); free($2); }
+    | NEW IDENTIFIER LBRACKET IDENTIFIER RBRACKET LPAREN opt_args RPAREN
+      { 
+        std::string type = std::string($2) + "[" + $4 + "]";
+        $$ = new AST::ConstructorCall(strdup(type.c_str()), $7); 
+        free($2); 
+        free($4); 
+      }
+    ;
+
+primary_expr
+    : INTEGER_LITERAL      { $$ = new AST::IntLiteral($1); }
+    | REAL_LITERAL         { $$ = new AST::RealLiteral($1); }
+    | TRUE                 { $$ = new AST::BoolLiteral(true); }
+    | FALSE                { $$ = new AST::BoolLiteral(false); }
+    | IDENTIFIER           { $$ = new AST::Identifier($1); free($1); }
+    | THIS                 { $$ = new AST::ThisLiteral(); }
+    | LPAREN expr RPAREN   { $$ = $2; }
     ;
 
 opt_args
     : arg_list { $$ = $1; }
-    |          { $$ = new std::vector<AST::Expr*>(); }
+    | /* empty */ { $$ = new std::vector<AST::Expr*>(); }
     ;
 
 arg_list
     : arg_list COMMA expr { $$ = $1; $1->push_back($3); }
     | expr                { $$ = new std::vector<AST::Expr*>(); $$->push_back($1); }
-    ;
-
-primary_expr
-    : INT_LITERAL      { $$ = new AST::IntLiteral($1); }
-    | STRING_LITERAL   { $$ = new AST::StringLiteral($1); free($1); }
-    | TRUE             { $$ = new AST::BoolLiteral(true); }
-    | FALSE            { $$ = new AST::BoolLiteral(false); }
-    | IDENTIFIER       { $$ = new AST::Identifier($1); free($1); }
-    | type_as_expr     { $$ = $1; }
-    | LPAREN expr RPAREN { $$ = $2; }
-    ;
-
-type_as_expr
-    : type_spec
-      { $$ = new AST::Identifier($1); free($1); }
-    ;
-
-lvalue
-    : IDENTIFIER                 { $$ = new AST::Identifier($1); free($1); }
-    | lvalue DOT IDENTIFIER      { $$ = new AST::MemberAccess($1, $3); free($3); }
-    | lvalue LBRACKET expr RBRACKET { $$ = new AST::Index($1, $3); }
     ;
 
 %%

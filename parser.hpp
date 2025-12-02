@@ -49,10 +49,14 @@ extern int yydebug;
 
   #include <vector>
   namespace AST {
-    struct Node; struct Program; struct ClassDecl; struct VarDecl; struct Expr; struct Stmt; struct MethodDecl; struct Param; struct Block;
+    struct Node; struct Program; struct ClassDecl; struct VarDecl; struct Expr; struct Stmt; 
+    struct MethodDecl; struct ConstructorDecl; struct Param; struct Block; struct ReturnStmt;
+    struct VarDeclStmt; struct AssignmentStmt; struct ExprStmt; struct IfStmt; struct WhileStmt;
+    struct MemberAccess; struct MethodCall; struct ConstructorCall; struct IntLiteral;
+    struct RealLiteral; struct BoolLiteral; struct Identifier; struct ThisLiteral;
   }
 
-#line 56 "parser.hpp"
+#line 60 "parser.hpp"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -64,42 +68,33 @@ extern int yydebug;
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
     CLASS = 258,                   /* CLASS  */
-    VAR = 259,                     /* VAR  */
+    EXTENDS = 259,                 /* EXTENDS  */
     IS = 260,                      /* IS  */
     END = 261,                     /* END  */
-    METHOD = 262,                  /* METHOD  */
-    RETURN = 263,                  /* RETURN  */
-    IF = 264,                      /* IF  */
-    THEN = 265,                    /* THEN  */
-    ELSE = 266,                    /* ELSE  */
-    WHILE = 267,                   /* WHILE  */
-    DO = 268,                      /* DO  */
-    TRUE = 269,                    /* TRUE  */
-    FALSE = 270,                   /* FALSE  */
-    COLON = 271,                   /* COLON  */
-    SEMICOLON = 272,               /* SEMICOLON  */
-    COMMA = 273,                   /* COMMA  */
-    LPAREN = 274,                  /* LPAREN  */
-    RPAREN = 275,                  /* RPAREN  */
-    LBRACE = 276,                  /* LBRACE  */
-    RBRACE = 277,                  /* RBRACE  */
-    LBRACKET = 278,                /* LBRACKET  */
-    RBRACKET = 279,                /* RBRACKET  */
-    ASSIGN = 280,                  /* ASSIGN  */
-    ARROW = 281,                   /* ARROW  */
-    PLUS = 282,                    /* PLUS  */
-    MINUS = 283,                   /* MINUS  */
-    STAR = 284,                    /* STAR  */
-    SLASH = 285,                   /* SLASH  */
-    DOT = 286,                     /* DOT  */
-    GT = 287,                      /* GT  */
-    LT = 288,                      /* LT  */
-    EQEQ = 289,                    /* EQEQ  */
-    EQUAL = 290,                   /* EQUAL  */
-    IDENTIFIER = 291,              /* IDENTIFIER  */
-    TYPE_NAME = 292,               /* TYPE_NAME  */
-    INT_LITERAL = 293,             /* INT_LITERAL  */
-    STRING_LITERAL = 294           /* STRING_LITERAL  */
+    VAR = 262,                     /* VAR  */
+    METHOD = 263,                  /* METHOD  */
+    THIS = 264,                    /* THIS  */
+    WHILE = 265,                   /* WHILE  */
+    LOOP = 266,                    /* LOOP  */
+    IF = 267,                      /* IF  */
+    THEN = 268,                    /* THEN  */
+    ELSE = 269,                    /* ELSE  */
+    RETURN = 270,                  /* RETURN  */
+    TRUE = 271,                    /* TRUE  */
+    FALSE = 272,                   /* FALSE  */
+    NEW = 273,                     /* NEW  */
+    IDENTIFIER = 274,              /* IDENTIFIER  */
+    INTEGER_LITERAL = 275,         /* INTEGER_LITERAL  */
+    REAL_LITERAL = 276,            /* REAL_LITERAL  */
+    ASSIGN = 277,                  /* ASSIGN  */
+    ARROW = 278,                   /* ARROW  */
+    COLON = 279,                   /* COLON  */
+    COMMA = 280,                   /* COMMA  */
+    DOT = 281,                     /* DOT  */
+    LPAREN = 282,                  /* LPAREN  */
+    RPAREN = 283,                  /* RPAREN  */
+    LBRACKET = 284,                /* LBRACKET  */
+    RBRACKET = 285                 /* RBRACKET  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -108,9 +103,10 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 27 "parser.y"
+#line 31 "parser.y"
 
     long long                        ival;
+    double                           dval;
     char*                            cstr;
     AST::Program*                    program;
     AST::ClassDecl*                  classdecl;
@@ -118,7 +114,9 @@ union YYSTYPE
     AST::Expr*                       expr;
     AST::Stmt*                       stmt;
     AST::MethodDecl*                 methoddecl;
+    AST::ConstructorDecl*            constructor;
     AST::Param*                      param;
+    AST::Block*                      block;
     AST::Node*                       node;
     std::vector<AST::ClassDecl*>*    classlist;
     std::vector<AST::Node*>*         memberlist;
@@ -126,9 +124,8 @@ union YYSTYPE
     std::vector<AST::Param*>*        paramlist;
     std::vector<AST::Stmt*>*         stmtlist;
     std::vector<AST::Expr*>*         exprlist;
-    std::vector<char*>*              strlist;
 
-#line 132 "parser.hpp"
+#line 129 "parser.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

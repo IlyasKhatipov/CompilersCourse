@@ -1,4 +1,7 @@
-class Math is
-  method Add(a : Int, b : Int) : Int => a + b
-  method Neg(v : Float) : Float => -v
+class Base is
+  var baseField : Integer(5)
+end
+
+class Derived extends Base is
+  var derivedField : Integer(10)
 end

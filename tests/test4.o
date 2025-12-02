@@ -1,6 +1,10 @@
-class Main is
-  method Run() : Int =>
-    var x : Int = 10;
-    var y : Int = 5;
-    return y + 1
+class Container[Integer] is
+  var item : Integer
+  
+  this(val: Integer) is
+    item := val
+  end
 end
+
+var arr : Array[Integer](10)
+var list : List[Real]

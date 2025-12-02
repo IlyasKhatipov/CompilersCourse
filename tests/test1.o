@@ -1,4 +1,6 @@
-class Point is
-  var x : Int;
-  var y : Int;
+class Simple is
+  var x : Integer(10)
+  method getX : Integer is
+    return x
+  end
 end

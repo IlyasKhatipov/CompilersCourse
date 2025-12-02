@@ -1,6 +1,0 @@
-class Main is
-  method square(x : Int) : Int => x * x
-  
-  method main() : Void =>
-    output(square(4))
-end

@@ -6,15 +6,21 @@
 #include <cstdint>
 
 enum class TokenKind {
-    CLASS, VAR, IS, END,
-    METHOD, RETURN, IF, THEN, ELSE,
-    WHILE, DO,
-    TRUEKW, FALSEKW,
-    IDENTIFIER, TYPE_NAME, INT_LITERAL, STRING_LITERAL,
-    COLON, SEMICOLON, COMMA,
-    LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET,
-    ASSIGN, ARROW, PLUS, MINUS, STAR, SLASH,
-    DOT, GT, LT, EQEQ, EQUAL,
+    // Keywords (только из грамматики)
+    CLASS, EXTENDS, IS, END,
+    VAR, METHOD, THIS,
+    WHILE, LOOP, IF, THEN, ELSE,
+    RETURN,
+    TRUE, FALSE,                     // Булевы литералы
+    
+    // Identifiers and literals
+    IDENTIFIER,                      // Включая имена стандартных классов
+    INTEGER_LITERAL, REAL_LITERAL,   // Числовые литералы
+    
+    // Symbols
+    COLON, COMMA, DOT,
+    LPAREN, RPAREN, LBRACKET, RBRACKET,
+    ASSIGN, ARROW,
     END_OF_FILE
 };
 
@@ -38,21 +44,16 @@ struct IdentifierToken : Token {
         : Token(TokenKind::IDENTIFIER, lx, ln, col) {}
 };
 
-struct TypeNameToken : Token {
-    TypeNameToken(const std::string& lx, int ln, int col)
-        : Token(TokenKind::TYPE_NAME, lx, ln, col) {}
-};
-
 struct IntegerToken : Token {
     std::int64_t value;
     IntegerToken(const std::string& lx, std::int64_t v, int ln, int col)
-        : Token(TokenKind::INT_LITERAL, lx, ln, col), value(v) {}
+        : Token(TokenKind::INTEGER_LITERAL, lx, ln, col), value(v) {}
 };
 
-struct StringToken : Token {
-    std::string value;
-    StringToken(const std::string& lx, std::string v, int ln, int col)
-        : Token(TokenKind::STRING_LITERAL, lx, ln, col), value(std::move(v)) {}
+struct RealToken : Token {
+    double value;
+    RealToken(const std::string& lx, double v, int ln, int col)
+        : Token(TokenKind::REAL_LITERAL, lx, ln, col), value(v) {}
 };
 
 struct SymbolToken : Token {
@@ -63,42 +64,32 @@ struct SymbolToken : Token {
 inline const char* TokenKindToString(TokenKind k) {
     switch (k) {
         case TokenKind::CLASS: return "CLASS";
-        case TokenKind::VAR: return "VAR";
+        case TokenKind::EXTENDS: return "EXTENDS";
         case TokenKind::IS: return "IS";
         case TokenKind::END: return "END";
+        case TokenKind::VAR: return "VAR";
         case TokenKind::METHOD: return "METHOD";
-        case TokenKind::RETURN: return "RETURN";
+        case TokenKind::THIS: return "THIS";
+        case TokenKind::WHILE: return "WHILE";
+        case TokenKind::LOOP: return "LOOP";
         case TokenKind::IF: return "IF";
         case TokenKind::THEN: return "THEN";
         case TokenKind::ELSE: return "ELSE";
-        case TokenKind::WHILE: return "WHILE";
-        case TokenKind::DO: return "DO";
-        case TokenKind::TRUEKW: return "TRUE";
-        case TokenKind::FALSEKW: return "FALSE";
+        case TokenKind::RETURN: return "RETURN";
+        case TokenKind::TRUE: return "TRUE";
+        case TokenKind::FALSE: return "FALSE";
         case TokenKind::IDENTIFIER: return "IDENTIFIER";
-        case TokenKind::TYPE_NAME: return "TYPE_NAME";
-        case TokenKind::INT_LITERAL: return "INT_LITERAL";
-        case TokenKind::STRING_LITERAL: return "STRING_LITERAL";
+        case TokenKind::INTEGER_LITERAL: return "INTEGER_LITERAL";
+        case TokenKind::REAL_LITERAL: return "REAL_LITERAL";
         case TokenKind::COLON: return "COLON";
-        case TokenKind::SEMICOLON: return "SEMICOLON";
         case TokenKind::COMMA: return "COMMA";
+        case TokenKind::DOT: return "DOT";
         case TokenKind::LPAREN: return "LPAREN";
         case TokenKind::RPAREN: return "RPAREN";
-        case TokenKind::LBRACE: return "LBRACE";
-        case TokenKind::RBRACE: return "RBRACE";
         case TokenKind::LBRACKET: return "LBRACKET";
         case TokenKind::RBRACKET: return "RBRACKET";
         case TokenKind::ASSIGN: return "ASSIGN";
         case TokenKind::ARROW: return "ARROW";
-        case TokenKind::PLUS: return "PLUS";
-        case TokenKind::MINUS: return "MINUS";
-        case TokenKind::STAR: return "STAR";
-        case TokenKind::SLASH: return "SLASH";
-        case TokenKind::DOT: return "DOT";
-        case TokenKind::GT: return "GT";
-        case TokenKind::LT: return "LT";
-        case TokenKind::EQEQ: return "EQEQ";
-        case TokenKind::EQUAL: return "EQUAL";
         case TokenKind::END_OF_FILE: return "EOF";
     }
     return "UNKNOWN";
@@ -108,13 +99,14 @@ inline std::vector<std::unique_ptr<Token>> g_tokens;
 
 inline void EmitToken(std::unique_ptr<Token> t) {
     std::cout << TokenKindToString(t->kind);
-    if (t->kind == TokenKind::IDENTIFIER || t->kind == TokenKind::TYPE_NAME) {
+    if (t->kind == TokenKind::IDENTIFIER) {
         std::cout << "(" << t->lexeme << ")";
-    } else if (t->kind == TokenKind::INT_LITERAL) {
+    } else if (t->kind == TokenKind::INTEGER_LITERAL) {
         auto* it = static_cast<IntegerToken*>(t.get());
         std::cout << "(" << it->value << ")";
-    } else if (t->kind == TokenKind::STRING_LITERAL) {
-        std::cout << "(" << t->lexeme << ")";
+    } else if (t->kind == TokenKind::REAL_LITERAL) {
+        auto* rt = static_cast<RealToken*>(t.get());
+        std::cout << "(" << rt->value << ")";
     }
     std::cout << "\n";
     g_tokens.emplace_back(std::move(t));

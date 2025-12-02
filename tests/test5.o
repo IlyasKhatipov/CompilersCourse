@@ -1,0 +1,17 @@
+class ControlExample is
+  method example(n: Integer) : Integer is
+    var i : Integer(0)
+    var sum : Integer(0)
+    
+    while i.Less(n) loop
+      if i.Rem(2).Equal(0) then
+        sum := sum.Plus(i)
+      else
+        // do nothing
+      end
+      i := i.Plus(1)
+    end
+    
+    return sum
+  end
+end

@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include "ast.hpp"
 
 struct SemanticResult {
@@ -10,9 +11,16 @@ struct SemanticResult {
     std::vector<std::string> warnings;       
     std::vector<std::string> optimizations;  
 
-    void addError(const std::string& msg) { ok = false; errors.push_back(msg); }
-    void addWarning(const std::string& msg) { warnings.push_back(msg); }        
-    void addOptimization(const std::string& msg) { optimizations.push_back(msg); } 
+    void addError(const std::string& msg) { 
+        ok = false; 
+        errors.push_back(msg); 
+    }
+    void addWarning(const std::string& msg) { 
+        warnings.push_back(msg); 
+    }        
+    void addOptimization(const std::string& msg) { 
+        optimizations.push_back(msg); 
+    } 
 };
 
 class SemanticAnalyzer {
@@ -21,45 +29,75 @@ public:
     SemanticResult analyze(AST::Program* p);
 
 private:
-    // class name -> pointer
+    // Система типов
+    struct TypeInfo {
+        std::string name;
+        AST::ClassDecl* classDecl = nullptr;
+        TypeInfo* base = nullptr;
+        
+        bool isSubtypeOf(const std::string& other) const {
+            if (name == other) return true;
+            if (base) return base->isSubtypeOf(other);
+            return false;
+        }
+    };
+    
+    // Контекст анализа
     std::unordered_map<std::string, AST::ClassDecl*> classes;
-
-    // state while traversing
-    AST::ClassDecl* curClass = nullptr;
-    AST::MethodDecl* curMethod = nullptr;
-
-    // locals: name -> type
-    std::vector<std::unordered_map<std::string,std::string>> localsStack;
-
-    // track usage of locals in corresponding scopes: name -> used?
-    std::vector<std::unordered_map<std::string,bool>> usedStack;
-
+    std::unordered_map<std::string, TypeInfo*> types;
+    
+    AST::ClassDecl* currentClass = nullptr;
+    AST::MethodDecl* currentMethod = nullptr;
+    AST::ConstructorDecl* currentConstructor = nullptr;
+    
+    // Локальные переменные и их типы
+    struct Scope {
+        std::unordered_map<std::string, TypeInfo*> variables;
+        std::unordered_map<std::string, bool> used;
+    };
+    std::vector<Scope> scopes;
+    
     SemanticResult result;
-
-    // helpers
+    
+    // Вспомогательные методы
     void indexClasses(AST::Program* p);
+    void buildTypeHierarchy();
+    TypeInfo* getTypeInfo(const std::string& name);
+    
+    // Анализ
     void analyzeClass(AST::ClassDecl* c);
+    void analyzeConstructor(AST::ConstructorDecl* c);
     void analyzeMethod(AST::MethodDecl* m);
+    void analyzeField(AST::VarDecl* f);
+    
     void analyzeBlock(AST::Block* b);
     void analyzeStmt(AST::Stmt*& s);
     void analyzeExpr(AST::Expr*& e);
-
-    // optimizations
-    bool foldConstantsInExpr(AST::Expr*& e); // returns true if replaced/changed
+    
+    // Проверки типов
+    TypeInfo* typeOfExpr(AST::Expr* e);
+    TypeInfo* typeOfConstructorCall(AST::ConstructorCall* cc);
+    TypeInfo* typeOfMethodCall(AST::MethodCall* mc);
+    
+    bool isAssignable(TypeInfo* target, TypeInfo* source);
+    bool typesCompatible(TypeInfo* t1, TypeInfo* t2);
+    
+    // Поиск
+    AST::MethodDecl* findMethod(const std::string& className, const std::string& methodName);
+    AST::VarDecl* findField(const std::string& className, const std::string& fieldName);
+    
+    // Оптимизации
+    bool foldConstantsInExpr(AST::Expr*& e);
     void simplifyIf(AST::Stmt*& s);
     void removeUnreachableInBlock(AST::Block* b);
-
-    // remove unused variables from a block (helper)
-    void removeUnusedVarsInStmt(AST::Stmt*& s, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used);
-    void removeUnusedVarsInBlock(AST::Block* b, const std::unordered_map<std::string,std::string>& declared, const std::unordered_map<std::string,bool>& used);
-
-    // types
-    std::string typeOfExpr(AST::Expr* e);
-    bool isLiteral(AST::Expr* e);
+    void removeUnusedVars();
+    
+    // Управление областями видимости
     void pushScope();
     void popScope();
-    void declareLocal(const std::string& name, const std::string& type);
-
-    // utilities
-    std::string curPos(AST::Node* n);
+    void declareVariable(const std::string& name, TypeInfo* type);
+    void markVariableUsed(const std::string& name);
+    
+    // Утилиты
+    std::string getPosition();
 };
