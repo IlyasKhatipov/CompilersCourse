@@ -1,0 +1,6 @@
+class Main is
+  this() is
+    var value : Integer(10)
+    output(valeu)
+  end
+end

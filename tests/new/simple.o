@@ -1,0 +1,6 @@
+class Main is
+  this() is
+    output(42)
+    return
+  end
+end

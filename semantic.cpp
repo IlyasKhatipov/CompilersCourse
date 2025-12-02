@@ -274,6 +274,25 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
     }
 
     if (auto* id = dynamic_cast<AST::Identifier*>(e)) {
+        if (curClass) {
+            for (auto* m : curClass->methods) {
+                if (m->name == id->name) {
+                    markUsed(id->name);
+                    return m->returnType;
+                }
+            }
+            if (!curClass->baseName.empty()) {
+                auto it = classes.find(curClass->baseName);
+                if (it != classes.end() && it->second) {
+                    for (auto* m : it->second->methods) {
+                        if (m->name == id->name) {
+                            markUsed(id->name);
+                            return m->returnType;
+                        }
+                    }
+                }
+            }
+        }
         auto itc = classes.find(id->name);
         if (itc != classes.end()) {
             return id->name;
@@ -360,13 +379,25 @@ std::string SemanticAnalyzer::typeOfExpr(AST::Expr* e) {
                 return id->name;
             }
             if (curClass) {
-                for (auto* m : curClass->methods) {
-                    if (m->name == id->name) {
-                        for (auto* a : call->args) typeOfExpr(a);
-                        return m->returnType;
+            for (auto* m : curClass->methods) {
+                if (m->name == id->name) {
+                    // Проверим соответствие аргументов (пока пропускаем)
+                    for (auto* a : call->args) typeOfExpr(a);
+                    return m->returnType;
+                }
+            }
+            if (!curClass->baseName.empty()) {
+                auto it = classes.find(curClass->baseName);
+                if (it != classes.end() && it->second) {
+                    for (auto* m : it->second->methods) {
+                        if (m->name == id->name) {
+                            for (auto* a : call->args) typeOfExpr(a);
+                            return m->returnType;
+                        }
                     }
                 }
             }
+        }
             for (auto* a : call->args) typeOfExpr(a);
             result.addError("Call to unknown function or constructor '" + id->name + "'");
             return "";

@@ -5,6 +5,7 @@ class Main is
     var limit : Integer(5)
     while i.Less(limit) loop
       i := i.Plus(Integer(1))
+      output(i)
     end
     return
   end

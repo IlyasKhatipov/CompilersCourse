@@ -140,6 +140,19 @@ void WasmGenerator::emitExpr(std::ostream& os, AST::Expr* e, const std::unordere
                 os << "    i32.const 0\n";
                 return;
             }
+            else if (id->name == "Integer" || id->name == "Real" || id->name == "Boolean") {
+            if (!call->args.empty()) {
+                emitExpr(os, call->args[0], locals);
+            } else {
+                os << "    i32.const 0\n";
+            }
+            if (findClass(id->name)) {
+            static int nextObjId = 1;
+            os << "    i32.const " << (nextObjId++) << "\n";
+            return;
+        }
+            return;
+        }
         }
         if (auto* ma = dynamic_cast<AST::MemberAccess*>(call->callee)) {
             if (auto* objId = dynamic_cast<AST::Identifier*>(ma->object)) {
@@ -247,9 +260,26 @@ void WasmGenerator::emitStmt(std::ostream& os, AST::Stmt* s, const std::unordere
 
 void WasmGenerator::emitCtorAsMain(std::ostream& os, AST::ClassDecl* c, AST::CtorDecl* ctor) {
     std::unordered_map<std::string, bool> locals;
+    
+    if (c) {
+        for (auto* f : c->fields) {
+            locals[f->name] = true;
+        }
+    }
+    
     if (ctor && ctor->body) collectLocals(ctor->body, locals);
     os << "  (func $main (export \"_start\")\n";
     emitLocals(os, locals);
+    
+    if (c) {
+        for (auto* f : c->fields) {
+            if (f->init) {
+                emitExpr(os, f->init, locals);
+                os << "    local.set $" << f->name << "\n";
+            }
+        }
+    }
+    
     if (ctor && ctor->body) {
         if (auto* blk = dynamic_cast<AST::Block*>(ctor->body)) {
             emitBlock(os, blk, locals);

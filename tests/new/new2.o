@@ -5,11 +5,14 @@ class Main is
     var z : Integer(3)
     if x.Equal(z) then
       x := x.Plus(Integer(1))
+      output(x)
     else
       if z.Greater(x) then
         x := z.Minus(x)
+        output(x)
       else
         x := Integer(0)
+        output(x)
       end
     end
     return

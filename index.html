@@ -14,7 +14,7 @@
       }
       async function main() {
         try {
-          const response = await fetch("out.wasm");
+          const response = await fetch("out5.wasm");
           const bytes = await response.arrayBuffer();
           const module = await WebAssembly.instantiate(bytes, {
             env: {
